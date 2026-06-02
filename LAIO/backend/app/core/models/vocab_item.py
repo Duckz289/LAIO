@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import Boolean, DateTime, SmallInteger, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, SmallInteger, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -12,7 +12,7 @@ class VocabItem(Base):
     __tablename__ = "vocab_items"
 
     notebook_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True),
+        ForeignKey("notebooks.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )

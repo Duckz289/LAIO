@@ -3,10 +3,14 @@
 // ============================================
 "use client";
 
-import React from "react";
-import { CheckCircle2, Users, Gamepad2, Brain, ArrowRight, BookOpen, Smartphone } from "lucide-react";
+import React, { useState } from "react";
+import { CheckCircle2, Users, Gamepad2, Brain, ArrowRight } from "lucide-react";
+import AuthModal from "@/components/auth/AuthModal";
 
 export default function LandingPage() {
+  // State quản lý việc ẩn/hiển thị bảng đăng nhập
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 text-slate-900 font-sans antialiased">
       
@@ -31,10 +35,16 @@ export default function LandingPage() {
 
           {/* Auth Buttons */}
           <div className="flex items-center gap-4">
-            <button className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
+            <button 
+              onClick={() => setIsAuthModalOpen(true)}
+              className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
+            >
               Đăng nhập
             </button>
-            <button className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-xl transition-all shadow-sm shadow-blue-500/10 flex items-center gap-1">
+            <button 
+              onClick={() => setIsAuthModalOpen(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-xl transition-all shadow-sm shadow-blue-500/10 flex items-center gap-1"
+            >
               Bắt đầu miễn phí <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -48,23 +58,26 @@ export default function LandingPage() {
           {/* Cột trái: Nội dung Text */}
           <div className="lg:col-span-6 flex flex-col gap-6 text-left">
             <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-slate-950 leading-[1.15]">
-              Học từ vựng có lộ trình, <br />
-              <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                nhớ lâu hơn
-              </span>{' '}
-              và{' '}
-              <span className="bg-gradient-to-r from-teal-500 to-emerald-600 bg-clip-text text-transparent">
+              Học từ vựng theo lộ trình: <br />
+              <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-700 bg-clip-text text-transparent drop-shadow-sm">
+                Nhớ lâu hơn
+              </span>
+              ,{" "}
+              <span className="bg-gradient-to-r from-teal-500 via-emerald-500 to-green-600 bg-clip-text text-transparent drop-shadow-sm">
                 học đều hơn
               </span>
+              .
             </h1>
-
             
             <p className="text-slate-600 text-base sm:text-lg leading-relaxed max-w-xl">
               Thay vì mở 5 app khác nhau, bạn chỉ cần một chỗ: chọn bộ từ, học flashcard, luyện qua game, để SRS nhắc ôn đúng lúc. Có sẵn hơn 100.000 từ vựng từ SGK, Oxford 3000, Cambridge IELTS, Vocabulary in Use và nhiều nguồn khác.
             </p>
 
             <div>
-              <button className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3.5 rounded-2xl transition-all shadow-lg shadow-blue-500/20 flex items-center gap-2 group text-base">
+              <button 
+                onClick={() => setIsAuthModalOpen(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3.5 rounded-2xl transition-all shadow-lg shadow-blue-500/20 flex items-center gap-2 group text-base"
+              >
                 Bắt đầu học miễn phí 
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </button>
@@ -75,17 +88,17 @@ export default function LandingPage() {
               <div className="bg-slate-100/60 border border-slate-200/50 rounded-xl p-3 flex flex-col gap-1">
                 <Users className="w-5 h-5 text-blue-600" />
                 <span className="font-bold text-sm text-slate-900">100.000+</span>
-                <span className="text-xs text-slate-500">Người học</span>
+                <span className="text-xs text-slate-500">người học</span>
               </div>
               <div className="bg-slate-100/60 border border-slate-200/50 rounded-xl p-3 flex flex-col gap-1">
                 <Gamepad2 className="w-5 h-5 text-amber-500" />
                 <span className="font-bold text-sm text-slate-900">6 mode</span>
-                <span className="text-xs text-slate-500">Game luyện tập</span>
+                <span className="text-xs text-slate-500">game luyện tập</span>
               </div>
               <div className="bg-slate-100/60 border border-slate-200/50 rounded-xl p-3 flex flex-col gap-1">
                 <Brain className="w-5 h-5 text-purple-500" />
                 <span className="font-bold text-sm text-slate-900">SRS</span>
-                <span className="text-xs text-slate-500">Nhắc ôn thông minh</span>
+                <span className="text-xs text-slate-500">nhắc ôn thông minh</span>
               </div>
             </div>
 
@@ -105,11 +118,9 @@ export default function LandingPage() {
 
           {/* Cột phải: Mockup Hình ảnh đại diện */}
           <div className="lg:col-span-6 relative flex justify-center items-center">
-            {/* Vòng tròn hiệu ứng phát sáng mờ phía sau */}
             <div className="absolute w-72 h-72 bg-blue-400/20 rounded-full blur-3xl -z-10 top-10 left-10" />
             <div className="absolute w-72 h-72 bg-indigo-400/20 rounded-full blur-3xl -z-10 bottom-10 right-10" />
 
-            {/* Khung máy tính / Laptop Giả lập bằng CSS */}
             <div className="w-full max-w-[480px] bg-slate-900 p-3 rounded-2xl shadow-2xl border border-slate-800 relative">
               <div className="aspect-[16/10] bg-gradient-to-tr from-slate-900 to-slate-950 rounded-xl border border-slate-700 overflow-hidden flex flex-col p-4 text-white">
                 <div className="flex items-center gap-1.5 border-b border-slate-800 pb-2 mb-2">
@@ -143,7 +154,7 @@ export default function LandingPage() {
                 </div>
                 <div className="flex flex-col">
                   <span className="text-[11px] font-bold text-slate-900">SRS + roadmap</span>
-                  <span className="text-[9px] text-slate-500">Không học rời rạc</span>
+                  <span className="text-[9px] text-slate-500">không học rời rạc</span>
                 </div>
               </div>
             </div>
@@ -152,38 +163,33 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 3. FEATURES GRID SECTION (Hình số 2) */}
+      {/* 3. FEATURES GRID SECTION */}
       <section id="features" className="py-16 px-6 bg-slate-100/50 border-y border-slate-200/60">
         <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          
           <div className="bg-white p-6 rounded-2xl border border-slate-200/60 shadow-sm flex flex-col gap-3">
             <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-red-500 font-bold">❤️</div>
             <h3 className="font-bold text-lg text-slate-950">100.000+</h3>
-            <p className="text-sm text-slate-500 leading-relaxed">Người học đang hoạt động tích cực trên toàn hệ thống.</p>
+            <p className="text-sm text-slate-500 leading-relaxed">người học đang hoạt động tích cực trên toàn hệ thống.</p>
           </div>
-
           <div className="bg-white p-6 rounded-2xl border border-slate-200/60 shadow-sm flex flex-col gap-3">
             <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-500 font-bold">📖</div>
             <h3 className="font-bold text-lg text-slate-950">100.000+</h3>
-            <p className="text-sm text-slate-500 leading-relaxed">Từ vựng từ SGK, Oxford 3000, Vocabulary in Use, Cambridge cho IELTS...</p>
+            <p className="text-sm text-slate-500 leading-relaxed">từ vựng từ SGK, Oxford 3000, Vocabulary in Use, Cambridge cho IELTS...</p>
           </div>
-
           <div className="bg-white p-6 rounded-2xl border border-slate-200/60 shadow-sm flex flex-col gap-3">
             <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center text-amber-500 font-bold">🎧</div>
             <h3 className="font-bold text-lg text-slate-950">6 Chế Độ</h3>
-            <p className="text-sm text-slate-500 leading-relaxed">Chế độ luyện tập nâng cao kết hợp thuật toán ôn tập ngắt quãng SRS.</p>
+            <p className="text-sm text-slate-500 leading-relaxed">chế độ luyện tập nâng cao kết hợp thuật toán ôn tập ngắt quãng SRS.</p>
           </div>
-
           <div className="bg-white p-6 rounded-2xl border border-slate-200/60 shadow-sm flex flex-col gap-3">
             <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-500 font-bold">📱</div>
             <h3 className="font-bold text-lg text-slate-950">Web + Mobile</h3>
-            <p className="text-sm text-slate-500 leading-relaxed">Học liền mạch trên mọi thiết bị, dữ liệu đồng bộ thời gian thực.</p>
+            <p className="text-sm text-slate-500 leading-relaxed">học liền mạch trên mọi thiết bị, dữ liệu đồng bộ thời gian thực.</p>
           </div>
-
         </div>
       </section>
 
-      {/* 4. MAIN FEATURES HEADER (Phần cuối hình 2) */}
+      {/* 4. MAIN FEATURES HEADER */}
       <section className="py-20 px-6 max-w-7xl mx-auto text-center flex flex-col gap-4">
         <span className="text-xs font-bold uppercase tracking-widest text-blue-600">Tính năng chính</span>
         <h2 className="text-3xl md:text-4xl font-extrabold text-slate-950 tracking-tight">
@@ -194,6 +200,9 @@ export default function LandingPage() {
           Dưới đây là những gì bạn thực sự dùng mỗi ngày khi học trên Luyện Từ.
         </p>
       </section>
+
+      {/* Nhúng AuthModal vào chân trang */}
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
 
     </div>
   );
