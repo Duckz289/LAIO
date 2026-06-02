@@ -13,4 +13,4 @@ __all__ = [
     "ReviewHistory",
     "ReviewTypeEnum",
     "GameSession",
-]s
+]
