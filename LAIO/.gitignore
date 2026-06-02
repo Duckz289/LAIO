@@ -137,6 +137,32 @@ dist
 !.yarn/sdks
 !.yarn/versions
 
+
+# ========================================================
+# PYTHON BACKEND SPECIFIC (LAIO PROJECT)
+# ========================================================
+
+# Chặn thư mục môi trường ảo Python
+backend/venv/
+venv/
+ENV/
+env/
+
+# Chặn các file biên dịch chạy ngầm của Python
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Chặn file cấu hình môi trường riêng của Backend nếu có
+backend/.env
+
+# Chặn các file log và cache của công cụ test Python
+.pytest_cache/
+.mypy_cache/
+
+
 # Vite files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
