@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-
+import "./globals.css"; // <-- BẮT BUỘC: Phải có dòng import này!
 
 export const metadata: Metadata = {
-  title: "LAIO - Luyện Từ All-In-One",
+  title: "Luyện Từ - LAIO",
   description: "Ứng dụng học từ vựng thông minh",
 };
 
@@ -13,10 +13,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="vi">
-      <body>
-        {/* Khung layout chung sẽ nằm ở đây (Navbar/Sidebar) */}
-        <main>{children}</main>
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
