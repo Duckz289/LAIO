@@ -1,0 +1,1 @@
+"""LAIO Backend Application."""

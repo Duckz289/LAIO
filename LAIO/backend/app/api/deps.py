@@ -1,20 +1,13 @@
 from typing import Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from supabase import create_client, Client
+from sqlalchemy.ext.asyncio import AsyncSession
 import httpx
 
 from app.core.config import settings
+from app.core.database import get_db
 
 security = HTTPBearer(auto_error=False)
-
-
-def get_supabase_client() -> Client:
-    """Get Supabase client with service role."""
-    return create_client(
-        settings.SUPABASE_URL,
-        settings.SUPABASE_SERVICE_KEY,
-    )
 
 
 async def verify_supabase_token(token: str) -> dict:
@@ -38,26 +31,11 @@ async def verify_supabase_token(token: str) -> dict:
 async def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
 ) -> str:
-    """Dependency: Extract user_id from Supabase JWT token."""
+    """Get current user_id from Supabase JWT."""
     if credentials is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated",
         )
-
     user_data = await verify_supabase_token(credentials.credentials)
-    return user_data["id"]  # Supabase user UUID
-
-
-async def get_current_user_optional(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
-) -> Optional[str]:
-    """Dependency: Extract user_id optionally (for public endpoints)."""
-    if credentials is None:
-        return None
-
-    try:
-        user_data = await verify_supabase_token(credentials.credentials)
-        return user_data["id"]
-    except HTTPException:
-        return None
+    return user_data["id"]
