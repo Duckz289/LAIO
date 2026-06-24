@@ -85,16 +85,3 @@ def delete_vocab_item(
 ):
     if not vocab_service.delete_vocab_item(db, vocab_id, UUID(user_id)):
         raise HTTPException(status_code=404, detail="Vocab item not found")
-
-
-@router.patch("/{vocab_id}/review", response_model=VocabItemResponse)
-def review_vocab_item(
-    vocab_id: UUID,
-    is_mastered: bool,
-    db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user),
-):
-    vocab = vocab_service.review_vocab_item(db, vocab_id, UUID(user_id), is_mastered)
-    if not vocab:
-        raise HTTPException(status_code=404, detail="Vocab item not found")
-    return vocab

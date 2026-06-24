@@ -2,19 +2,14 @@
 
 import React, { useEffect, useState } from "react";
 import { Plus, BookOpen, Trash2, Folder, LogOut, Loader2, X } from "lucide-react";
-import { api } from "@/lib/api";
+import { api, NotebookRecord, ProgressSummary } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
-
-interface Notebook {
-  id: string;
-  title: string;
-  description: string;
-  is_archived: boolean;
-  updated_at: string;
-}
+import { useAuth } from "@/hooks/useAuth";
 
 export default function NotebooksPage() {
-  const [notebooks, setNotebooks] = useState<Notebook[]>([]);
+  const { user, loading: authLoading } = useAuth();
+  const [notebooks, setNotebooks] = useState<NotebookRecord[]>([]);
+  const [progress, setProgress] = useState<ProgressSummary | null>(null);
   const [loading, setLoading] = useState(true);
   
   // State quản lý Modal tạo sổ tay mới
@@ -27,13 +22,14 @@ export default function NotebooksPage() {
   const fetchNotebooks = async () => {
   try {
     setLoading(true);
-    console.log("🔄 Đang gọi API...");
-    const response = await api.get("/notebooks/");
-    console.log("✅ Response:", response);
+    const [response, summary] = await Promise.all([
+      api.getNotebooks(),
+      api.getProgressSummary(),
+    ]);
     setNotebooks(response.notebooks || []);
-  } catch (error: any) {
+    setProgress(summary);
+  } catch (error) {
     console.error("❌ Lỗi chi tiết:", error);
-    console.error("❌ Message:", error.message);
     setNotebooks([]);
   } finally {
     setLoading(false);
@@ -41,8 +37,8 @@ export default function NotebooksPage() {
 };
 
   useEffect(() => {
-    fetchNotebooks();
-  }, []);
+    if (!authLoading && user) void fetchNotebooks();
+  }, [authLoading, user]);
 
   // 2. Xử lý tạo Sổ tay mới
   const handleCreateNotebook = async (e: React.FormEvent) => {
@@ -51,7 +47,7 @@ export default function NotebooksPage() {
     setSubmitting(true);
 
     try {
-      await api.post("/notebooks/", { title, description });
+      await api.createNotebook({ title, description });
       setTitle("");
       setDescription("");
       setIsModalOpen(false);
@@ -67,7 +63,7 @@ export default function NotebooksPage() {
   const handleDeleteNotebook = async (id: string) => {
     if (!confirm("Bạn có chắc chắn muốn xóa sổ tay này không? Toàn bộ từ vựng bên trong sẽ bị mất.")) return;
     try {
-      await api.delete(`/notebooks/${id}`);
+      await api.deleteNotebook(id);
       setNotebooks(notebooks.filter((n) => n.id !== id));
     } catch (error) {
       alert("Xóa sổ tay thất bại.");
@@ -119,8 +115,27 @@ export default function NotebooksPage() {
           </button>
         </div>
 
+        {progress && (
+          <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+            {[
+              ["Tổng từ", progress.total_vocabulary],
+              ["Cần ôn hôm nay", progress.due_today],
+              ["Độ chính xác", `${progress.accuracy_percentage}%`],
+              ["Chuỗi ngày học", progress.current_streak_days],
+            ].map(([label, value]) => (
+              <div
+                key={label}
+                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+              >
+                <p className="text-xs font-medium text-slate-500">{label}</p>
+                <p className="mt-2 text-2xl font-bold text-slate-950">{value}</p>
+              </div>
+            ))}
+          </section>
+        )}
+
         {/* LOADING STATE */}
-        {loading ? (
+        {authLoading || loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
             <p className="text-sm text-slate-400 font-medium">Đang tải danh sách sổ tay...</p>

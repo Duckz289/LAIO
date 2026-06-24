@@ -1,14 +1,15 @@
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from app.core.models.game_session import GameSession
+from app.core.models.review_history import ReviewTypeEnum
 
 
-async def start_game_session(
+def start_game_session(
     db: Session,
     user_id: UUID,
     notebook_id: UUID | None,
-    game_type: str,
+    game_type: ReviewTypeEnum,
 ) -> GameSession:
     """Start a new game session."""
     session = GameSession(
@@ -18,7 +19,7 @@ async def start_game_session(
         total_questions=0,
         correct_answers=0,
         accuracy_percentage=0.0,
-        started_at=datetime.utcnow(),
+        started_at=datetime.now(timezone.utc),
     )
     db.add(session)
     db.flush()
@@ -26,7 +27,7 @@ async def start_game_session(
     return session
 
 
-async def end_game_session(
+def end_game_session(
     db: Session,
     session_id: UUID,
     user_id: UUID,
@@ -44,14 +45,19 @@ async def end_game_session(
     
     session.total_questions = total_questions
     session.correct_answers = correct_answers
-    session.ended_at = datetime.utcnow()
+    session.accuracy_percentage = (
+        round((correct_answers / total_questions) * 100, 2)
+        if total_questions
+        else 0
+    )
+    session.ended_at = datetime.now(timezone.utc)
     
     db.flush()
     db.refresh(session)
     return session
 
 
-async def get_game_session(
+def get_game_session(
     db: Session,
     session_id: UUID,
     user_id: UUID,

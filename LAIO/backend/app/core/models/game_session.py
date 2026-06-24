@@ -14,7 +14,15 @@ class GameSession(Base):
         UUID(as_uuid=True), ForeignKey("notebooks.id", ondelete="SET NULL"),
         nullable=True, index=True
     )
-    game_type: Mapped[ReviewTypeEnum] = mapped_column(Enum(ReviewTypeEnum, name="review_type_enum", create_type=False), nullable=False)
+    game_type: Mapped[ReviewTypeEnum] = mapped_column(
+        Enum(
+            ReviewTypeEnum,
+            name="review_type_enum",
+            create_type=False,
+            values_callable=lambda enum: [item.value for item in enum],
+        ),
+        nullable=False,
+    )
     total_questions: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     correct_answers: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     accuracy_percentage: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)

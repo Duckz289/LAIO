@@ -3,61 +3,51 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Volume2, Sparkles } from 'lucide-react';
+import { X, Volume2 } from 'lucide-react';
 import { Vocab } from '../types';
 
 interface AddVocabModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAdd: (vocab: Omit<Vocab, 'id' | 'created_at' | 'updated_at'>) => void;
+  onAdd: (
+    vocab: Omit<Vocab, 'id' | 'created_at' | 'updated_at'>,
+  ) => Promise<void>;
   editingVocab?: Vocab | null;
 }
 
 export default function AddVocabModal({ isOpen, onClose, onAdd, editingVocab }: AddVocabModalProps) {
+  const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
     word: editingVocab?.word || '',
     meaning: editingVocab?.meaning || '',
     pronunciation: editingVocab?.pronunciation || '',
     example_sentence: editingVocab?.example_sentence || '',
-    difficulty_level: editingVocab?.difficulty_level || 0,
+    difficulty_level: editingVocab?.difficulty_level || 1,
     is_mastered: editingVocab?.is_mastered || false,
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.word.trim() || !form.meaning.trim()) {
       alert('Vui lòng nhập từ và nghĩa!');
       return;
     }
-    onAdd(form);
-    setForm({
-      word: '',
-      meaning: '',
-      pronunciation: '',
-      example_sentence: '',
-      difficulty_level: 0,
-      is_mastered: false,
-    });
-    onClose();
-  };
-
-  const mockLookup = () => {
-    if (form.word.toLowerCase() === 'analyze') {
+    try {
+      setSubmitting(true);
+      await onAdd(form);
       setForm({
-        ...form,
-        meaning: 'phân tích',
-        pronunciation: '/ˈæn.əl.aɪz/',
-        example_sentence: 'We need to analyze the data.',
+        word: '',
+        meaning: '',
+        pronunciation: '',
+        example_sentence: '',
+        difficulty_level: 1,
+        is_mastered: false,
       });
-    } else if (form.word.toLowerCase() === 'significant') {
-      setForm({
-        ...form,
-        meaning: 'đáng kể, quan trọng',
-        pronunciation: '/sɪɡˈnɪf.ɪ.kənt/',
-        example_sentence: 'A significant change occurred.',
-      });
-    } else {
-      alert('Demo: Chỉ hỗ trợ tra từ "analyze" và "significant"');
+      onClose();
+    } catch {
+      // The parent owns the user-facing error message; keep the modal open.
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -101,13 +91,6 @@ export default function AddVocabModal({ isOpen, onClose, onAdd, editingVocab }: 
                   className="px-3 py-2 bg-gray-100 rounded-lg hover:bg-gray-200"
                 >
                   <Volume2 className="w-5 h-5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={mockLookup}
-                  className="px-3 py-2 bg-purple-100 text-purple-600 rounded-lg hover:bg-purple-200"
-                >
-                  <Sparkles className="w-5 h-5" />
                 </button>
               </div>
             </div>
@@ -156,9 +139,14 @@ export default function AddVocabModal({ isOpen, onClose, onAdd, editingVocab }: 
               </button>
               <button
                 type="submit"
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                disabled={submitting}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {editingVocab ? 'Cập nhật' : 'Thêm từ'}
+                {submitting
+                  ? 'Đang lưu...'
+                  : editingVocab
+                    ? 'Cập nhật'
+                    : 'Thêm từ'}
               </button>
             </div>
           </form>

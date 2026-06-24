@@ -49,3 +49,8 @@ class Notebook(Base):
         back_populates="notebook",
         lazy="selectin",
     )
+    learning_sessions: Mapped[List["LearningSession"]] = relationship(
+        "LearningSession",
+        back_populates="notebook",
+        lazy="selectin",
+    )

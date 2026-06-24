@@ -1,63 +1,9 @@
-from typing import Optional
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from supabase import create_client, Client
-import httpx
+"""Compatibility exports for authentication dependencies.
 
-from app.core.config import settings
+New API modules should import from ``app.api.deps``. This module remains only
+to avoid breaking older imports during the incremental rework.
+"""
 
-security = HTTPBearer(auto_error=False)
+from app.api.deps import get_current_user, verify_supabase_token
 
-
-def get_supabase_client() -> Client:
-    """Get Supabase client with service role."""
-    return create_client(
-        settings.SUPABASE_URL,
-        settings.SUPABASE_SERVICE_KEY,
-    )
-
-
-async def verify_supabase_token(token: str) -> dict:
-    """Verify JWT token with Supabase Auth."""
-    async with httpx.AsyncClient() as client:
-        response = await client.get(
-            f"{settings.SUPABASE_URL}/auth/v1/user",
-            headers={
-                "Authorization": f"Bearer {token}",
-                "apikey": settings.SUPABASE_PUBLISHABLE_KEY,
-            },
-        )
-        if response.status_code != 200:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid authentication token",
-            )
-        return response.json()
-
-
-async def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
-) -> str:
-    """Dependency: Extract user_id from Supabase JWT token."""
-    if credentials is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
-
-    user_data = await verify_supabase_token(credentials.credentials)
-    return user_data["id"]  # Supabase user UUID
-
-
-async def get_current_user_optional(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
-) -> Optional[str]:
-    """Dependency: Extract user_id optionally (for public endpoints)."""
-    if credentials is None:
-        return None
-
-    try:
-        user_data = await verify_supabase_token(credentials.credentials)
-        return user_data["id"]
-    except HTTPException:
-        return None
+__all__ = ["get_current_user", "verify_supabase_token"]

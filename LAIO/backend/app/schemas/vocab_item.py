@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 from pydantic import BaseModel, Field
 
@@ -43,6 +43,10 @@ class VocabItemResponse(BaseModel):
     is_mastered: bool
     created_at: datetime
     updated_at: datetime
+    next_review_date: date | None = None
+    repetition_count: int = 0
+    interval_days: int = 1
+    ease_factor: float = 2.5
 
     model_config = {"from_attributes": True}
 

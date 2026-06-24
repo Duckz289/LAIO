@@ -8,12 +8,15 @@ import { Vocab } from '../types';
 
 interface StudyModeProps {
   dueVocabs: Vocab[];
-  onReview: (id: string, remembered: boolean) => void;
+  onReview: (id: string, score: number, timeSpentMs: number) => Promise<void>;
+  onComplete: () => Promise<void>;
 }
 
-export default function StudyMode({ dueVocabs, onReview }: StudyModeProps) {
+export default function StudyMode({ dueVocabs, onReview, onComplete }: StudyModeProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
+  const [answerStartedAt, setAnswerStartedAt] = useState(() => Date.now());
+  const [submitting, setSubmitting] = useState(false);
 
   const current = dueVocabs[currentIndex];
 
@@ -24,15 +27,22 @@ export default function StudyMode({ dueVocabs, onReview }: StudyModeProps) {
     window.speechSynthesis.speak(utterance);
   };
 
-  const handleReview = (remembered: boolean) => {
-    onReview(current.id, remembered);
-    setShowAnswer(false);
-    
-    if (currentIndex + 1 < dueVocabs.length) {
-      setCurrentIndex(currentIndex + 1);
-    } else {
-      alert('🎉 Chúc mừng! Bạn đã ôn tập xong hôm nay!');
-      setCurrentIndex(0);
+  const handleReview = async (score: number) => {
+    try {
+      setSubmitting(true);
+      await onReview(current.id, score, Date.now() - answerStartedAt);
+      setShowAnswer(false);
+
+      if (currentIndex + 1 < dueVocabs.length) {
+        setCurrentIndex(currentIndex + 1);
+        setAnswerStartedAt(Date.now());
+      } else {
+        await onComplete();
+        alert('🎉 Chúc mừng! Bạn đã ôn tập xong hôm nay!');
+        setCurrentIndex(0);
+      }
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -80,13 +90,15 @@ export default function StudyMode({ dueVocabs, onReview }: StudyModeProps) {
         ) : (
           <>
             <button
-              onClick={() => handleReview(false)}
+              onClick={() => handleReview(1)}
+              disabled={submitting}
               className="px-6 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium transition-colors"
             >
               😰 Không nhớ
             </button>
             <button
-              onClick={() => handleReview(true)}
+              onClick={() => handleReview(4)}
+              disabled={submitting}
               className="px-6 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-xl font-medium transition-colors"
             >
               😎 Nhớ rồi

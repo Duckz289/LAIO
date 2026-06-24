@@ -1,12 +1,13 @@
 from datetime import datetime
 from uuid import UUID
 from pydantic import BaseModel
+from app.core.models.review_history import ReviewTypeEnum
 
 
 class GameSessionStart(BaseModel):
     """Schema for starting a game session."""
     notebook_id: UUID | None = None
-    game_type: str
+    game_type: ReviewTypeEnum
 
 
 class GameSessionEnd(BaseModel):
@@ -20,7 +21,7 @@ class GameSessionResponse(BaseModel):
     id: UUID
     user_id: UUID
     notebook_id: UUID | None
-    game_type: str
+    game_type: ReviewTypeEnum
     total_questions: int
     correct_answers: int
     accuracy_percentage: float

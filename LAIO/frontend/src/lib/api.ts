@@ -1,206 +1,206 @@
 import { supabase } from "./supabase";
 
-const BASE_URL = "http://127.0.0.1:8000/api/v1";
+const BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000/api/v1";
 
-const SUPABASE_TOKEN_KEY = "sb-cxuomrnhvpgigcebjzyh-auth-token";
+export interface NotebookRecord {
+  id: string;
+  user_id: string;
+  title: string;
+  description: string;
+  is_archived: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VocabRecord {
+  id: string;
+  notebook_id: string;
+  word: string;
+  meaning: string;
+  pronunciation: string | null;
+  example_sentence: string;
+  audio_url: string;
+  image_url: string;
+  pos: string | null;
+  difficulty_level: number;
+  is_mastered: boolean;
+  created_at: string;
+  updated_at: string;
+  next_review_date: string | null;
+  repetition_count: number;
+  interval_days: number;
+  ease_factor: number;
+}
+
+export interface LearningSession {
+  id: string;
+  notebook_id: string | null;
+  skill_type: "vocabulary";
+  status: "active" | "completed" | "abandoned";
+  planned_items: number;
+  answered_items: number;
+  correct_answers: number;
+  accuracy_percentage: number;
+  started_at: string;
+  completed_at: string | null;
+}
+
+export interface DueReviewItem {
+  vocab_item_id: string;
+  notebook_id: string;
+  word: string;
+  meaning: string;
+  pronunciation: string | null;
+  example_sentence: string;
+  audio_url: string;
+  image_url: string;
+  ease_factor: number;
+  interval_days: number;
+  repetition_count: number;
+  next_review_date: string;
+  last_reviewed_at: string | null;
+}
+
+export interface ProgressSummary {
+  total_vocabulary: number;
+  due_today: number;
+  reviews_completed: number;
+  correct_reviews: number;
+  accuracy_percentage: number;
+  current_streak_days: number;
+}
+
+export class ApiError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
 
 async function getHeaders(): Promise<HeadersInit> {
-  let token: string | null = null;
+  const { data, error } = await supabase.auth.getSession();
+  if (error) throw error;
 
-  // Ưu tiên 1: Lấy token từ localStorage
-  try {
-    const raw = localStorage.getItem(SUPABASE_TOKEN_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      token = parsed?.access_token ?? null;
-    }
-  } catch (e) {
-    console.warn("[api] Không parse được token từ localStorage:", e);
+  const headers: HeadersInit = { "Content-Type": "application/json" };
+  if (data.session?.access_token) {
+    headers.Authorization = `Bearer ${data.session.access_token}`;
   }
-
-  // Ưu tiên 2: Fallback sang supabase.auth.getSession()
-  if (!token) {
-    try {
-      const { data } = await supabase.auth.getSession();
-      token = data.session?.access_token ?? null;
-    } catch (e) {
-      console.warn("[api] Không lấy được session từ Supabase:", e);
-    }
-  }
-
-  if (token) {
-    console.log("[api] ✅ Có token — sẽ gửi Authorization header");
-  } else {
-    console.warn("[api] ❌ Không có token — request sẽ bị 401");
-  }
-
-  const headers: HeadersInit = {
-    "Content-Type": "application/json",
-  };
-
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-
   return headers;
 }
 
-// ─── HTTP Primitives ──────────────────────────────────────────────────────────
+async function request<T>(path: string, init: RequestInit): Promise<T> {
+  const response = await fetch(`${BASE_URL}${path}`, {
+    ...init,
+    headers: await getHeaders(),
+  });
 
-async function get<T>(path: string): Promise<T> {
-  const headers = await getHeaders();
-  const res = await fetch(`${BASE_URL}${path}`, { method: "GET", headers });
-  if (!res.ok) throw new Error(`GET ${path} → ${res.status} ${res.statusText}`);
-  return res.json();
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as {
+      detail?: string;
+    } | null;
+    throw new ApiError(
+      response.status,
+      payload?.detail ?? `${init.method ?? "GET"} ${path} failed`,
+    );
+  }
+
+  if (response.status === 204) return undefined as T;
+  return response.json() as Promise<T>;
 }
 
-async function post<T>(path: string, body?: unknown): Promise<T> {
-  const headers = await getHeaders();
-  const res = await fetch(`${BASE_URL}${path}`, {
+export function get<T>(path: string): Promise<T> {
+  return request<T>(path, { method: "GET" });
+}
+
+export function post<T>(path: string, body?: unknown): Promise<T> {
+  return request<T>(path, {
     method: "POST",
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body: body === undefined ? undefined : JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`POST ${path} → ${res.status} ${res.statusText}`);
-  return res.json();
 }
 
-async function put<T>(path: string, body?: unknown): Promise<T> {
-  const headers = await getHeaders();
-  const res = await fetch(`${BASE_URL}${path}`, {
+export function put<T>(path: string, body?: unknown): Promise<T> {
+  return request<T>(path, {
     method: "PUT",
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body: body === undefined ? undefined : JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`PUT ${path} → ${res.status} ${res.statusText}`);
-  return res.json();
 }
 
-async function patch<T>(path: string, body?: unknown): Promise<T> {
-  const headers = await getHeaders();
-  const res = await fetch(`${BASE_URL}${path}`, {
+export function patch<T>(path: string, body?: unknown): Promise<T> {
+  return request<T>(path, {
     method: "PATCH",
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body: body === undefined ? undefined : JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`PATCH ${path} → ${res.status} ${res.statusText}`);
-  return res.json();
 }
 
-async function del<T>(path: string): Promise<T> {
-  const headers = await getHeaders();
-  const res = await fetch(`${BASE_URL}${path}`, { method: "DELETE", headers });
-  if (!res.ok) throw new Error(`DELETE ${path} → ${res.status} ${res.statusText}`);
-  return res.json();
+export function del<T>(path: string): Promise<T> {
+  return request<T>(path, { method: "DELETE" });
 }
-
-// ─── Export ───────────────────────────────────────────────────────────────────
-
-export { get, post, put, patch, del };
 
 export const api = {
-  // HTTP primitives
   get,
   post,
   put,
   patch,
   delete: del,
-
-  // ── Notebooks ───────────────────────────────────────────────────────────────
-
-  /** GET /notebooks/ — Lấy danh sách notebooks */
-  getNotebooks() {
-    return get<any>("/notebooks/");
-  },
-
-  /** GET /notebooks/{id} — Lấy chi tiết notebook */
-  getNotebook(notebookId: string) {
-    return get<any>(`/notebooks/${notebookId}`);
-  },
-
-  /** POST /notebooks/ — Tạo notebook mới */
-  createNotebook(body: { title: string; description?: string }) {
-    return post<any>("/notebooks/", body);
-  },
-
-  /** PUT /notebooks/{id} — Cập nhật notebook */
-  updateNotebook(notebookId: string, body: Record<string, unknown>) {
-    return put<any>(`/notebooks/${notebookId}`, body);
-  },
-
-  /** DELETE /notebooks/{id} — Xóa notebook */
-  deleteNotebook(notebookId: string) {
-    return del<any>(`/notebooks/${notebookId}`);
-  },
-
-  // ── Vocab Items ─────────────────────────────────────────────────────────────
-
-  /** GET /vocab-items/notebook/{notebook_id} — Lấy danh sách vocab */
-  getVocabs(notebookId: string) {
-    return get<any>(`/vocab-items/notebook/${notebookId}`);
-  },
-
-  /** GET /vocab-items/{vocab_id} — Lấy chi tiết vocab */
-  getVocab(vocabId: string) {
-    return get<any>(`/vocab-items/${vocabId}`);
-  },
-
-  /** POST /vocab-items/?notebook_id={id} — Tạo vocab mới */
-  createVocab(notebookId: string, body: {
-    word: string;
-    meaning: string;
-    pronunciation?: string;
-    example_sentence?: string;
-  }) {
-    return post<any>(`/vocab-items/?notebook_id=${notebookId}`, body);
-  },
-
-  /** PUT /vocab-items/{vocab_id} — Cập nhật vocab */
-  updateVocab(vocabId: string, body: Record<string, unknown>) {
-    return put<any>(`/vocab-items/${vocabId}`, body);
-  },
-
-  /** DELETE /vocab-items/{vocab_id} — Xóa vocab */
-  deleteVocab(vocabId: string) {
-    return del<any>(`/vocab-items/${vocabId}`);
-  },
-
-  /** PATCH /vocab-items/{vocab_id}/review — Ghi nhận kết quả ôn tập */
-  reviewVocab(vocabId: string, remembered: boolean) {
-    return patch<any>(`/vocab-items/${vocabId}/review`, { remembered });
-  },
-
-  /** GET /vocab-items/notebook/{notebook_id}/search?q=... — Tìm kiếm vocab */
-  searchVocabs(notebookId: string, query: string) {
-    return get<any>(`/vocab-items/notebook/${notebookId}/search?q=${encodeURIComponent(query)}`);
-  },
-
-  // ── Reviews ─────────────────────────────────────────────────────────────────
-
-  /** GET /reviews/due — Lấy danh sách vocab cần ôn hôm nay */
-  getDueReviews() {
-    return get<any>("/reviews/due");
-  },
-
-  /** POST /reviews/submit — Submit kết quả review */
-  submitReview(body: { vocab_id: string; remembered: boolean }) {
-    return post<any>("/reviews/submit", body);
-  },
-
-  // ── Game Sessions ────────────────────────────────────────────────────────────
-
-  /** POST /game-sessions/start — Bắt đầu game session */
-  startGameSession(body: Record<string, unknown>) {
-    return post<any>("/game-sessions/start", body);
-  },
-
-  /** POST /game-sessions/{session_id}/end — Kết thúc game session */
-  endGameSession(sessionId: string, body?: Record<string, unknown>) {
-    return post<any>(`/game-sessions/${sessionId}/end`, body);
-  },
-
-  /** GET /game-sessions/{session_id} — Lấy thông tin game session */
-  getGameSession(sessionId: string) {
-    return get<any>(`/game-sessions/${sessionId}`);
-  },
+  getNotebooks: () =>
+    get<{ notebooks: NotebookRecord[]; total: number }>("/notebooks/"),
+  getNotebook: (id: string) => get<NotebookRecord>(`/notebooks/${id}`),
+  createNotebook: (body: { title: string; description?: string }) =>
+    post<NotebookRecord>("/notebooks/", body),
+  deleteNotebook: (id: string) => del<void>(`/notebooks/${id}`),
+  getVocabs: (notebookId: string) =>
+    get<{ vocab_items: VocabRecord[]; total: number }>(
+      `/vocab-items/notebook/${notebookId}`,
+    ),
+  createVocab: (
+    notebookId: string,
+    body: Pick<VocabRecord, "word" | "meaning"> &
+      Partial<
+        Pick<
+          VocabRecord,
+          "pronunciation" | "example_sentence" | "difficulty_level"
+        >
+      >,
+  ) => post<VocabRecord>(`/vocab-items/?notebook_id=${notebookId}`, body),
+  updateVocab: (id: string, body: Partial<VocabRecord>) =>
+    put<VocabRecord>(`/vocab-items/${id}`, body),
+  deleteVocab: (id: string) => del<void>(`/vocab-items/${id}`),
+  getDueReviews: (notebookId?: string) =>
+    get<{ items: DueReviewItem[]; total: number }>(
+      `/reviews/due${notebookId ? `?notebook_id=${notebookId}` : ""}`,
+    ),
+  startLearningSession: (notebookId?: string) =>
+    post<LearningSession>("/learning-sessions", {
+      notebook_id: notebookId ?? null,
+      limit: 20,
+      skill_type: "vocabulary",
+    }),
+  submitLearningAnswer: (
+    sessionId: string,
+    body: {
+      vocab_item_id: string;
+      score: number;
+      review_type: "flashcard";
+      time_spent_ms?: number;
+    },
+  ) =>
+    post<{
+      review_id: string;
+      correct: boolean;
+      schedule: {
+        ease_factor: number;
+        interval_days: number;
+        repetition_count: number;
+        next_review_date: string;
+      };
+      session: LearningSession;
+    }>(`/learning-sessions/${sessionId}/answers`, body),
+  completeLearningSession: (sessionId: string) =>
+    post<LearningSession>(`/learning-sessions/${sessionId}/complete`),
+  getProgressSummary: () => get<ProgressSummary>("/progress/summary"),
 };

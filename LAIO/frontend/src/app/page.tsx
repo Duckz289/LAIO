@@ -70,7 +70,9 @@ export default function LandingPage() {
             </h1>
             
             <p className="text-slate-600 text-base sm:text-lg leading-relaxed max-w-xl">
-              Thay vì mở 5 app khác nhau, bạn chỉ cần một chỗ: chọn bộ từ, học flashcard, luyện qua game, để SRS nhắc ôn đúng lúc. Có sẵn hơn 100.000 từ vựng từ SGK, Oxford 3000, Cambridge IELTS, Vocabulary in Use và nhiều nguồn khác.
+              Tạo bộ từ của riêng bạn, học bằng flashcard và để lịch ôn
+              ngắt quãng nhắc lại đúng lúc. LAIO đang được xây dựng để trở
+              thành một hành trình học tiếng Anh cá nhân hóa, liền mạch.
             </p>
 
             <div>
@@ -87,13 +89,13 @@ export default function LandingPage() {
             <div className="grid grid-cols-3 gap-4 mt-4 max-w-md">
               <div className="bg-slate-100/60 border border-slate-200/50 rounded-xl p-3 flex flex-col gap-1">
                 <Users className="w-5 h-5 text-blue-600" />
-                <span className="font-bold text-sm text-slate-900">100.000+</span>
-                <span className="text-xs text-slate-500">người học</span>
+                <span className="font-bold text-sm text-slate-900">Cá nhân</span>
+                <span className="text-xs text-slate-500">theo tiến độ riêng</span>
               </div>
               <div className="bg-slate-100/60 border border-slate-200/50 rounded-xl p-3 flex flex-col gap-1">
                 <Gamepad2 className="w-5 h-5 text-amber-500" />
-                <span className="font-bold text-sm text-slate-900">6 mode</span>
-                <span className="text-xs text-slate-500">game luyện tập</span>
+                <span className="font-bold text-sm text-slate-900">Flashcard</span>
+                <span className="text-xs text-slate-500">học chủ động</span>
               </div>
               <div className="bg-slate-100/60 border border-slate-200/50 rounded-xl p-3 flex flex-col gap-1">
                 <Brain className="w-5 h-5 text-purple-500" />
@@ -108,7 +110,7 @@ export default function LandingPage() {
                 <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Flashcard thông minh
               </div>
               <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Roadmap TOEIC / IELTS
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Tiến độ học rõ ràng
               </div>
               <div className="flex items-center gap-1.5">
                 <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Game luyện tập + SRS
@@ -142,12 +144,12 @@ export default function LandingPage() {
                   <Users className="w-4 h-4" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[11px] font-bold text-slate-900 whitespace-nowrap">100.000+ người học</span>
-                  <span className="text-[9px] text-slate-500 whitespace-nowrap">quay lại mỗi ngày</span>
+                  <span className="text-[11px] font-bold text-slate-900 whitespace-nowrap">Tiến độ của riêng bạn</span>
+                  <span className="text-[9px] text-slate-500 whitespace-nowrap">được lưu sau mỗi lượt ôn</span>
                 </div>
               </div>
 
-              {/* Floating Badge 2: SRS + Roadmap */}
+              {/* Floating Badge 2: SRS */}
               <div className="absolute -bottom-4 -right-4 bg-white/95 backdrop-blur-sm border border-slate-100 p-3 rounded-xl shadow-lg flex items-center gap-3 max-w-[180px]">
                 <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center text-purple-600">
                   <Brain className="w-4 h-4" />
@@ -168,23 +170,23 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="bg-white p-6 rounded-2xl border border-slate-200/60 shadow-sm flex flex-col gap-3">
             <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-red-500 font-bold">❤️</div>
-            <h3 className="font-bold text-lg text-slate-950">100.000+</h3>
-            <p className="text-sm text-slate-500 leading-relaxed">người học đang hoạt động tích cực trên toàn hệ thống.</p>
+            <h3 className="font-bold text-lg text-slate-950">Cá nhân hóa</h3>
+            <p className="text-sm text-slate-500 leading-relaxed">lịch ôn thay đổi theo kết quả học thực tế của bạn.</p>
           </div>
           <div className="bg-white p-6 rounded-2xl border border-slate-200/60 shadow-sm flex flex-col gap-3">
             <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-500 font-bold">📖</div>
-            <h3 className="font-bold text-lg text-slate-950">100.000+</h3>
-            <p className="text-sm text-slate-500 leading-relaxed">từ vựng từ SGK, Oxford 3000, Vocabulary in Use, Cambridge cho IELTS...</p>
+            <h3 className="font-bold text-lg text-slate-950">Bộ từ riêng</h3>
+            <p className="text-sm text-slate-500 leading-relaxed">tạo và quản lý nội dung đúng với mục tiêu hiện tại.</p>
           </div>
           <div className="bg-white p-6 rounded-2xl border border-slate-200/60 shadow-sm flex flex-col gap-3">
             <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center text-amber-500 font-bold">🎧</div>
-            <h3 className="font-bold text-lg text-slate-950">6 Chế Độ</h3>
-            <p className="text-sm text-slate-500 leading-relaxed">chế độ luyện tập nâng cao kết hợp thuật toán ôn tập ngắt quãng SRS.</p>
+            <h3 className="font-bold text-lg text-slate-950">Ôn tập SRS</h3>
+            <p className="text-sm text-slate-500 leading-relaxed">ghi nhận từng câu trả lời và lên lịch cho lần học tiếp theo.</p>
           </div>
           <div className="bg-white p-6 rounded-2xl border border-slate-200/60 shadow-sm flex flex-col gap-3">
             <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-500 font-bold">📱</div>
-            <h3 className="font-bold text-lg text-slate-950">Web + Mobile</h3>
-            <p className="text-sm text-slate-500 leading-relaxed">học liền mạch trên mọi thiết bị, dữ liệu đồng bộ thời gian thực.</p>
+            <h3 className="font-bold text-lg text-slate-950">Web trước</h3>
+            <p className="text-sm text-slate-500 leading-relaxed">một nền tảng web ổn định trước khi mở rộng sang kỹ năng và thiết bị mới.</p>
           </div>
         </div>
       </section>

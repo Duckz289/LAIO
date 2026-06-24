@@ -1,32 +1,12 @@
 from datetime import date, datetime
 from uuid import UUID
-from pydantic import BaseModel, Field
-
-
-class ReviewSubmit(BaseModel):
-    """Schema for submitting a review result."""
-    vocab_item_id: UUID
-    score: int = Field(..., ge=0, le=5)
-    review_type: str = Field(default="flashcard")
-    time_spent_ms: int | None = None
-
-
-class ReviewResponse(BaseModel):
-    """Schema for review history response."""
-    id: UUID
-    vocab_item_id: UUID
-    user_id: UUID
-    score: int
-    review_type: str
-    time_spent_ms: int | None
-    reviewed_at: datetime
-
-    model_config = {"from_attributes": True}
+from pydantic import BaseModel
 
 
 class DueReviewItem(BaseModel):
     """Schema for a vocab item due for review."""
     vocab_item_id: UUID
+    notebook_id: UUID
     word: str
     meaning: str
     pronunciation: str | None
