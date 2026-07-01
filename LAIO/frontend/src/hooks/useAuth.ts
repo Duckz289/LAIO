@@ -1,37 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import type { User } from "@supabase/supabase-js";
-
-import { supabase } from "@/lib/supabase";
+import { ensureAuthInitialized, useAuthStore } from "@/stores/auth-store";
 
 export function useAuth(requireUser = true) {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const user = useAuthStore((state) => state.user);
+  const loading = useAuthStore((state) => state.loading);
+  const initialized = useAuthStore((state) => state.initialized);
 
   useEffect(() => {
-    let mounted = true;
-    supabase.auth.getSession().then(({ data }) => {
-      if (!mounted) return;
-      setUser(data.session?.user ?? null);
-      setLoading(false);
-      if (requireUser && !data.session) router.replace("/");
-    });
-
-    const { data: subscription } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user ?? null);
-        setLoading(false);
-        if (requireUser && !session) router.replace("/");
-      },
-    );
-    return () => {
-      mounted = false;
-      subscription.subscription.unsubscribe();
-    };
+    void ensureAuthInitialized();
   }, [requireUser, router]);
+
+  useEffect(() => {
+    if (requireUser && initialized && !loading && !user) {
+      router.replace("/");
+    }
+  }, [initialized, loading, requireUser, router, user]);
 
   return { user, loading };
 }

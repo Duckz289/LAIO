@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { X, Mail, Lock, ArrowRight, Github } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -10,6 +11,7 @@ interface AuthModalProps {
 }
 
 export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
+  const router = useRouter();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -32,7 +34,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        window.location.href = "/notebooks";
+        router.replace("/notebooks");
       }
     } catch (error: any) {
       setErrorMsg(error.message || "Đã xảy ra lỗi, vui lòng thử lại.");

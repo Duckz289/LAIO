@@ -1,46 +1,37 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Plus, BookOpen, Trash2, Folder, LogOut, Loader2, X } from "lucide-react";
-import { api, NotebookRecord, ProgressSummary } from "@/lib/api";
+
+import { api } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
+import { useNotebooksStore } from "@/stores/notebooks-store";
 
 export default function NotebooksPage() {
+  const router = useRouter();
   const { user, loading: authLoading } = useAuth();
-  const [notebooks, setNotebooks] = useState<NotebookRecord[]>([]);
-  const [progress, setProgress] = useState<ProgressSummary | null>(null);
-  const [loading, setLoading] = useState(true);
-  
-  // State quản lý Modal tạo sổ tay mới
+  const notebooks = useNotebooksStore((state) => state.notebooks);
+  const progress = useNotebooksStore((state) => state.progress);
+  const loading = useNotebooksStore((state) => state.loading);
+  const refreshing = useNotebooksStore((state) => state.refreshing);
+  const initialized = useNotebooksStore((state) => state.initialized);
+  const fetchNotebooks = useNotebooksStore((state) => state.fetchNotebooks);
+  const removeNotebook = useNotebooksStore((state) => state.removeNotebook);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // 1. Lấy danh sách Sổ tay từ Backend FastAPI
-  const fetchNotebooks = async () => {
-  try {
-    setLoading(true);
-    const [response, summary] = await Promise.all([
-      api.getNotebooks(),
-      api.getProgressSummary(),
-    ]);
-    setNotebooks(response.notebooks || []);
-    setProgress(summary);
-  } catch (error) {
-    console.error("❌ Lỗi chi tiết:", error);
-    setNotebooks([]);
-  } finally {
-    setLoading(false);
-  }
-};
-
   useEffect(() => {
-    if (!authLoading && user) void fetchNotebooks();
-  }, [authLoading, user]);
+    if (!authLoading && user) {
+      void fetchNotebooks();
+    }
+  }, [authLoading, fetchNotebooks, user]);
 
-  // 2. Xử lý tạo Sổ tay mới
   const handleCreateNotebook = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
@@ -51,45 +42,47 @@ export default function NotebooksPage() {
       setTitle("");
       setDescription("");
       setIsModalOpen(false);
-      fetchNotebooks();
-    } catch (error) {
+      await fetchNotebooks({ force: true });
+    } catch {
       alert("Không thể tạo sổ tay, vui lòng thử lại.");
     } finally {
       setSubmitting(false);
     }
   };
 
-  // 3. Xử lý xóa Sổ tay
   const handleDeleteNotebook = async (id: string) => {
-    if (!confirm("Bạn có chắc chắn muốn xóa sổ tay này không? Toàn bộ từ vựng bên trong sẽ bị mất.")) return;
+    if (!confirm("Bạn có chắc chắn muốn xóa sổ tay này không? Toàn bộ từ vựng bên trong sẽ bị mất.")) {
+      return;
+    }
+
     try {
       await api.deleteNotebook(id);
-      setNotebooks(notebooks.filter((n) => n.id !== id));
-    } catch (error) {
+      removeNotebook(id);
+      await fetchNotebooks({ force: true });
+    } catch {
       alert("Xóa sổ tay thất bại.");
     }
   };
 
-  // 4. Đăng xuất
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    window.location.href = "/";
+    router.replace("/");
   };
+
+  const showInitialLoader = authLoading || (loading && !initialized);
 
   return (
     <div className="min-h-screen bg-slate-50/50 text-slate-900 font-sans antialiased">
-      
-      {/* NAVBAR */}
       <nav className="fixed top-0 left-0 right-0 z-40 bg-white border-b border-slate-200/80 px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.location.href = "/notebooks"}>
+          <Link href="/notebooks" className="flex items-center gap-2 cursor-pointer">
             <div className="w-9 h-9 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-md shadow-blue-500/20">
               <span className="text-white font-bold text-lg">L</span>
             </div>
             <span className="font-bold text-xl tracking-tight text-slate-900">LAIO Dashboard</span>
-          </div>
+          </Link>
 
-          <button 
+          <button
             onClick={handleLogout}
             className="flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-red-600 transition-colors bg-slate-100 hover:bg-red-50 px-4 py-2 rounded-xl"
           >
@@ -98,14 +91,20 @@ export default function NotebooksPage() {
         </div>
       </nav>
 
-      {/* MAIN CONTENT */}
       <main className="max-w-7xl mx-auto pt-28 pb-16 px-6">
-        
-        {/* Header Khu vực */}
+        {refreshing ? (
+          <div className="mb-4 flex items-center justify-end gap-2 text-xs font-medium text-slate-400">
+            <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+            <span>Đang cập nhật danh sách sổ tay...</span>
+          </div>
+        ) : null}
+
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10">
           <div>
             <h1 className="text-3xl font-extrabold tracking-tight text-slate-950">Sổ tay từ vựng của bạn</h1>
-            <p className="text-sm text-slate-500 mt-1">Quản lý và phân loại các bộ từ vựng để kích hoạt lộ trình ôn tập SRS.</p>
+            <p className="text-sm text-slate-500 mt-1">
+              Quản lý và phân loại các bộ từ vựng để kích hoạt lộ trình ôn tập SRS.
+            </p>
           </div>
           <button
             onClick={() => setIsModalOpen(true)}
@@ -115,7 +114,7 @@ export default function NotebooksPage() {
           </button>
         </div>
 
-        {progress && (
+        {progress ? (
           <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
             {[
               ["Tổng từ", progress.total_vocabulary],
@@ -132,23 +131,23 @@ export default function NotebooksPage() {
               </div>
             ))}
           </section>
-        )}
+        ) : null}
 
-        {/* LOADING STATE */}
-        {authLoading || loading ? (
+        {showInitialLoader ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
             <p className="text-sm text-slate-400 font-medium">Đang tải danh sách sổ tay...</p>
           </div>
         ) : notebooks.length === 0 ? (
-          /* EMPTY STATE */
           <div className="bg-white border border-dashed border-slate-200 rounded-2xl p-12 text-center max-w-md mx-auto mt-8 flex flex-col items-center gap-4 shadow-sm">
             <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
               <Folder className="w-6 h-6" />
             </div>
             <div>
               <h3 className="font-bold text-slate-900 text-lg">Chưa có sổ tay nào</h3>
-              <p className="text-sm text-slate-500 mt-1">Tạo ngay sổ tay đầu tiên để thêm từ vựng, bắt đầu cày game và ôn tập định kỳ.</p>
+              <p className="text-sm text-slate-500 mt-1">
+                Tạo ngay sổ tay đầu tiên để thêm từ vựng, bắt đầu cày game và ôn tập định kỳ.
+              </p>
             </div>
             <button
               onClick={() => setIsModalOpen(true)}
@@ -158,15 +157,17 @@ export default function NotebooksPage() {
             </button>
           </div>
         ) : (
-          /* GRID LIST NOTEBOOKS */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {notebooks.map((notebook, index) => (
-              <div 
+              <div
                 key={notebook.id}
                 className="bg-white border border-slate-200/60 rounded-2xl p-6 shadow-sm hover:shadow-md hover:border-slate-300/80 transition-all duration-200 flex flex-col justify-between group relative animate-fadeIn"
                 style={{ animationDelay: `${index * 100}ms` }}
               >
-                <div className="cursor-pointer" onClick={() => window.location.href = `/notebooks/${notebook.id}`}>
+                <div
+                  className="cursor-pointer"
+                  onClick={() => router.push(`/notebooks/${notebook.id}`)}
+                >
                   <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600 mb-4 group-hover:bg-blue-600 group-hover:text-white transition-all duration-200 group-hover:scale-110">
                     <BookOpen className="w-5 h-5" />
                   </div>
@@ -181,7 +182,7 @@ export default function NotebooksPage() {
                 <div className="flex items-center justify-between border-t border-slate-100 pt-4 text-xs text-slate-400 font-medium">
                   <span>Cập nhật: {new Date(notebook.updated_at).toLocaleDateString("vi-VN")}</span>
                   <button
-                    onClick={() => handleDeleteNotebook(notebook.id)}
+                    onClick={() => void handleDeleteNotebook(notebook.id)}
                     className="text-slate-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition-all duration-200 hover:scale-110"
                     title="Xóa sổ tay"
                   >
@@ -194,17 +195,17 @@ export default function NotebooksPage() {
         )}
       </main>
 
-      {/* POPUP MODAL: TẠO SỔ TAY MỚI - Backdrop xuất hiện ngay, popup có animation nhẹ */}
-      {isModalOpen && (
+      {isModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop - xuất hiện NGAY LẬP TỨC */}
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setIsModalOpen(false)} />
-          
-          {/* Popup - chỉ popup mới có animation */}
+          <div
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            onClick={() => setIsModalOpen(false)}
+          />
+
           <div className="relative z-10 w-full max-w-md animate-zoomIn">
             <div className="bg-white rounded-2xl border border-slate-100 shadow-2xl overflow-hidden p-6 flex flex-col gap-5">
-              <button 
-                onClick={() => setIsModalOpen(false)} 
+              <button
+                onClick={() => setIsModalOpen(false)}
                 className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-50 transition-all duration-200 hover:scale-110"
               >
                 <X className="w-5 h-5" />
@@ -212,7 +213,9 @@ export default function NotebooksPage() {
 
               <div className="text-center mt-2">
                 <h2 className="text-2xl font-bold text-slate-900">Tạo sổ tay mới</h2>
-                <p className="text-sm text-slate-500 mt-1">Phân loại từ vựng theo chủ đề (Ví dụ: IELTS Thường gặp, Từ SGK Lớp 10...)</p>
+                <p className="text-sm text-slate-500 mt-1">
+                  Phân loại từ vựng theo chủ đề để học có hệ thống hơn.
+                </p>
               </div>
 
               <form onSubmit={handleCreateNotebook} className="flex flex-col gap-4">
@@ -220,7 +223,7 @@ export default function NotebooksPage() {
                   <label className="text-xs font-semibold text-slate-700">Tên sổ tay</label>
                   <input
                     type="text"
-                    placeholder="Nhập tên sổ tay (bắt buộc)..."
+                    placeholder="Nhập tên sổ tay..."
                     required
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
@@ -254,7 +257,7 @@ export default function NotebooksPage() {
             </div>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

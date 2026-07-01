@@ -4,7 +4,10 @@ Cap nhat ngay 2026-06-24 dua tren doc code that trong workspace hien tai. Nhieu 
 
 ## Blocker
 
-Hien chua ghi nhan blocker doc-code nao trong snapshot nay.
+Xac nhan thuc te luc 2026-06-24 20:09:31 +07:00:
+- `backend`: da chay `.\venv\Scripts\python.exe -m pip install -r requirements.txt` va `.\venv\Scripts\python.exe -m pytest -v`.
+- Ket qua pytest that: `17 passed, 0 failed, 0 errors, 0 skipped` trong `3.52s`.
+- Auth verification end-to-end voi user token that hien dang bi chan boi project auth config: `backend/.env` khong co `SUPABASE_JWT_SECRET`; `signup` qua Supabase publishable key tao user duoc nhung khong tra session token; `password grant` tra `400 email_not_confirmed`; `SUPABASE_SERVICE_KEY` trong `.env` khong dung duoc voi Admin API (`401 Invalid API key`), nen chua lay duoc access token that de ket luan bang request 200/401 tren route auth.
 
 Frontend build da chay that bang `npm run build` trong `frontend/` ngay 2026-06-24 va pass. Cac page `/dashboard`, `/games`, `/review` hien redirect ve `/notebooks`, khong con la file rong.
 
@@ -26,8 +29,12 @@ Frontend build da chay that bang `npm run build` trong `frontend/` ngay 2026-06-
 ### 3. Auth local JWT branch can duoc test voi config that
 
 - Backend co 2 nhanh verify token: local JWT decode khi co `SUPABASE_JWT_SECRET` o `backend/app/api/deps.py:15` den `backend/app/api/deps.py:28`, fallback Supabase Auth API o `backend/app/api/deps.py:30` den `backend/app/api/deps.py:44`.
-- Can xac nhan bang token Supabase that xem project dang dung HS256 hay asymmetric/JWKS. Neu khong khop, local decode se 401 va fallback khong chay vi code return/raise trong branch secret.
-- Viec can lam: test manual voi env that, hoac chot chi dung fallback network cho den khi JWKS/secret duoc xac nhan.
+- Kiem tra that ngay 2026-06-24 20:09:31 +07:00:
+  `backend/.env` khong co dong `SUPABASE_JWT_SECRET`, va shell env cua tien trinh dang chay cung khong set `SUPABASE_JWT_SECRET`.
+  Theo code hien tai, dieu nay buoc `verify_supabase_token()` di vao nhanh fallback Supabase Auth API, khong vao nhanh local HS256 decode.
+  Da thu lay access token that bang Supabase Auth API: `signup` voi publishable key tra `200` nhung chi tao user chua confirm email; `POST /auth/v1/token?grant_type=password` tra `400 email_not_confirmed`; thu dung `SUPABASE_SERVICE_KEY` trong `.env` de tao user confirmed qua Admin API tra `401 Invalid API key`.
+  Da goi `GET /api/v1/notebooks/` tren backend local bang token khong hop le va nhan `401 {"detail":"Invalid authentication token"}`; ket qua nay phu hop voi nhanh fallback dang reject token, nhung chua du de xac nhan duong 200 voi user token that.
+- Viec can lam: can mot test account da confirm email hoac service/admin key hop le de lay access token that va chot hoan toan flow auth route.
 
 ## Trung
 
