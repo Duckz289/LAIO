@@ -13,3 +13,4 @@ def test_review_type_enum_uses_database_values() -> None:
 def test_learning_status_enum_uses_database_values() -> None:
     enum_type = LearningSession.__table__.c.status.type
     assert enum_type.enums == [item.value for item in LearningSessionStatus]
+    assert enum_type.native_enum is False

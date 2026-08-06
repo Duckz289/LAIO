@@ -11,6 +11,7 @@ from app.core.models.vocab_progress import VocabProgress
 
 
 def get_progress_summary(db: Session, user_id: UUID) -> dict:
+    current_date = db.scalar(select(func.current_date())) or date.today()
     total_vocabulary = db.scalar(
         select(func.count())
         .select_from(VocabItem)
@@ -48,7 +49,7 @@ def get_progress_summary(db: Session, user_id: UUID) -> dict:
         ).all()
     )
     streak = 0
-    cursor = date.today()
+    cursor = current_date
     if cursor not in review_dates:
         cursor -= timedelta(days=1)
     while cursor in review_dates:

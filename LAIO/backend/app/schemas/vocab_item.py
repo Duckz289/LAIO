@@ -1,31 +1,53 @@
 from datetime import date, datetime
 from uuid import UUID
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class VocabItemCreate(BaseModel):
     """Schema for creating a vocab item."""
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
     word: str = Field(..., min_length=1, max_length=500)
     meaning: str = Field(..., min_length=1)
-    pronunciation: str | None = None
+    pronunciation: str | None = Field(default=None, max_length=500)
     example_sentence: str = Field(default="")
     audio_url: str = Field(default="")
     image_url: str = Field(default="")
-    pos: str | None = None
+    pos: str | None = Field(default=None, max_length=100)
     difficulty_level: int = Field(default=1, ge=1, le=5)
+    is_mastered: bool = False
 
 
 class VocabItemUpdate(BaseModel):
     """Schema for updating a vocab item."""
-    word: str | None = None
-    meaning: str | None = None
-    pronunciation: str | None = None
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    word: str | None = Field(default=None, min_length=1, max_length=500)
+    meaning: str | None = Field(default=None, min_length=1)
+    pronunciation: str | None = Field(default=None, max_length=500)
     example_sentence: str | None = None
     audio_url: str | None = None
     image_url: str | None = None
-    pos: str | None = None
+    pos: str | None = Field(default=None, max_length=100)
     difficulty_level: int | None = Field(None, ge=1, le=5)
     is_mastered: bool | None = None
+
+    @field_validator(
+        "word",
+        "meaning",
+        "example_sentence",
+        "audio_url",
+        "image_url",
+        "difficulty_level",
+        "is_mastered",
+    )
+    @classmethod
+    def reject_null_for_database_required_fields(cls, value):
+        if value is None:
+            raise ValueError("Field cannot be null")
+        return value
 
 
 class VocabItemResponse(BaseModel):

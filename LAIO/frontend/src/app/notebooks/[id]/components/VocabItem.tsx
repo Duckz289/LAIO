@@ -1,9 +1,8 @@
-// frontend/src/app/notebooks/[id]/components/VocabItem.tsx
-
 'use client';
 
+import { CalendarClock, Edit2, Eye, EyeOff, Star, Trash2, Volume2 } from 'lucide-react';
 import { useState } from 'react';
-import { Volume2, Star, Edit2, Trash2, EyeOff, Eye } from 'lucide-react';
+
 import { Vocab } from '../types';
 
 interface VocabItemProps {
@@ -11,77 +10,131 @@ interface VocabItemProps {
   onToggleMaster: (id: string) => void;
   onEdit: (vocab: Vocab) => void;
   onDelete: (id: string) => void;
+  onSpeak: (id: string) => Promise<void>;
 }
 
-export default function VocabItem({ vocab, onToggleMaster, onEdit, onDelete }: VocabItemProps) {
-  const [isMeaningHidden, setIsMeaningHidden] = useState(false);
+function formatDate(value?: string | null) {
+  if (!value) return 'Not scheduled';
+  return new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(new Date(value));
+}
 
-  const speak = () => {
-    const utterance = new SpeechSynthesisUtterance(vocab.word);
-    utterance.lang = 'en-US';
-    window.speechSynthesis.speak(utterance);
+function difficultyLabel(value?: number) {
+  if (!value || value <= 1) return 'Easy';
+  if (value <= 3) return 'Medium';
+  return 'Hard';
+}
+
+export default function VocabItem({ vocab, onToggleMaster, onEdit, onDelete, onSpeak }: VocabItemProps) {
+  const [isMeaningHidden, setIsMeaningHidden] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+
+  const speak = async () => {
+    if (isSpeaking) return;
+    try {
+      setIsSpeaking(true);
+      await onSpeak(vocab.id);
+    } catch (error) {
+      console.warn('Failed to play vocabulary audio:', error);
+    } finally {
+      setIsSpeaking(false);
+    }
   };
 
   return (
-    <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm hover:shadow-md transition-all group">
-      <div className="flex justify-between items-start">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h4 className="font-bold text-lg text-gray-900">{vocab.word}</h4>
-            <span className="text-xs text-gray-400 font-mono">{vocab.pronunciation}</span>
-            <button 
-              onClick={speak}
-              className="text-gray-400 hover:text-blue-500 transition-colors"
+    <article className="group rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-lg hover:shadow-indigo-100/70">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h4 className="text-xl font-black tracking-tight text-slate-950">{vocab.word}</h4>
+            {vocab.pronunciation && (
+              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">
+                {vocab.pronunciation}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => void speak()}
+              disabled={isSpeaking}
+              className="rounded-xl p-2 text-slate-400 transition-all hover:bg-indigo-50 hover:text-indigo-600 disabled:cursor-wait disabled:opacity-50"
+              title="Speak"
             >
-              <Volume2 className="w-4 h-4" />
+              <Volume2 className={`h-4 w-4 ${isSpeaking ? 'animate-pulse text-indigo-600' : ''}`} />
             </button>
           </div>
-          
+
           {!isMeaningHidden ? (
-            <p className="text-gray-600 mt-1">{vocab.meaning}</p>
+            <p className="mt-3 text-sm font-semibold leading-6 text-slate-700">{vocab.meaning}</p>
           ) : (
-            <div className="mt-1">
-              <span className="text-gray-400 italic text-sm">--- Đã ẩn nghĩa ---</span>
-            </div>
+            <p className="mt-3 text-sm font-semibold italic text-slate-400">Meaning hidden</p>
           )}
-          
+
           {vocab.example_sentence && (
-            <p className="text-sm text-gray-400 italic mt-2">💡 {vocab.example_sentence}</p>
+            <p className="mt-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-500">
+              “{vocab.example_sentence}”
+            </p>
           )}
+
+          <div className="mt-4 flex flex-wrap gap-2 text-xs font-bold text-slate-500">
+            <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-3 py-1.5 text-indigo-700">
+              <CalendarClock className="h-3.5 w-3.5" />
+              Next: {formatDate(vocab.next_review_date)}
+            </span>
+            <span className="rounded-full bg-slate-100 px-3 py-1.5">
+              Rep {vocab.repetition_count ?? 0}
+            </span>
+            <span className="rounded-full bg-slate-100 px-3 py-1.5">
+              {vocab.interval_days ?? 0}d interval
+            </span>
+            <span className="rounded-full bg-slate-100 px-3 py-1.5">
+              {difficultyLabel(vocab.difficulty_level)}
+            </span>
+          </div>
         </div>
 
-        <div className="flex gap-1 ml-4">
+        <div className="flex items-center gap-1 self-start rounded-2xl bg-slate-50 p-1">
           <button
-            onClick={() => setIsMeaningHidden(!isMeaningHidden)}
-            className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
-            title={isMeaningHidden ? "Hiện nghĩa" : "Ẩn nghĩa"}
+            type="button"
+            onClick={() => setIsMeaningHidden((current) => !current)}
+            className="rounded-xl p-2 text-slate-400 transition-all hover:bg-white hover:text-slate-700 hover:shadow-sm"
+            title={isMeaningHidden ? 'Show meaning' : 'Hide meaning'}
           >
-            {isMeaningHidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            {isMeaningHidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
-          
+
           <button
+            type="button"
             onClick={() => onToggleMaster(vocab.id)}
-            className={`p-2 rounded-lg transition-all ${vocab.is_mastered ? 'text-yellow-500 hover:text-yellow-600' : 'text-gray-300 hover:text-yellow-500'}`}
-            title={vocab.is_mastered ? "Đã nhớ" : "Đánh dấu đã nhớ"}
+            className={`rounded-xl p-2 transition-all hover:bg-white hover:shadow-sm ${
+              vocab.is_mastered ? 'text-amber-500' : 'text-slate-300 hover:text-amber-500'
+            }`}
+            title={vocab.is_mastered ? 'Mastered' : 'Mark mastered'}
           >
-            <Star className="w-4 h-4" fill={vocab.is_mastered ? 'currentColor' : 'none'} />
+            <Star className="h-4 w-4" fill={vocab.is_mastered ? 'currentColor' : 'none'} />
           </button>
-          
+
           <button
+            type="button"
             onClick={() => onEdit(vocab)}
-            className="p-2 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-all"
+            className="rounded-xl p-2 text-slate-400 transition-all hover:bg-white hover:text-indigo-600 hover:shadow-sm"
+            title="Edit"
           >
-            <Edit2 className="w-4 h-4" />
+            <Edit2 className="h-4 w-4" />
           </button>
-          
+
           <button
+            type="button"
             onClick={() => onDelete(vocab.id)}
-            className="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
+            className="rounded-xl p-2 text-slate-400 transition-all hover:bg-white hover:text-red-600 hover:shadow-sm"
+            title="Delete"
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="h-4 w-4" />
           </button>
         </div>
       </div>
-    </div>
+    </article>
   );
 }

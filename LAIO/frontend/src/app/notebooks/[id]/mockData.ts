@@ -15,6 +15,7 @@ export const mockVocabs: Vocab[] = [
   {
     id: '1',
     word: 'analyze',
+    audio_url: '',
     meaning: 'phân tích',
     pronunciation: '/ˈæn.əl.aɪz/',
     example_sentence: 'We need to analyze the data carefully.',
@@ -27,6 +28,7 @@ export const mockVocabs: Vocab[] = [
   {
     id: '2',
     word: 'significant',
+    audio_url: '',
     meaning: 'đáng kể, quan trọng',
     pronunciation: '/sɪɡˈnɪf.ɪ.kənt/',
     example_sentence: 'There was a significant improvement.',
@@ -39,6 +41,7 @@ export const mockVocabs: Vocab[] = [
   {
     id: '3',
     word: 'consequence',
+    audio_url: '',
     meaning: 'hậu quả',
     pronunciation: '/ˈkɒn.sɪ.kwəns/',
     example_sentence: 'The consequences could be severe.',

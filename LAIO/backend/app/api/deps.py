@@ -1,4 +1,6 @@
 from typing import Optional
+from uuid import UUID
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import httpx
@@ -50,7 +52,7 @@ async def verify_supabase_token(token: str) -> dict:
 
 async def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
-) -> str:
+) -> UUID:
     """Get current user_id from Supabase JWT."""
     if credentials is None:
         raise HTTPException(
@@ -64,4 +66,10 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication token has no user id",
         )
-    return user_id
+    try:
+        return UUID(str(user_id))
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication token has an invalid user id",
+        ) from exc

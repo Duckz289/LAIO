@@ -16,7 +16,7 @@ Next.js, FastAPI, PostgreSQL, and Supabase Auth.
    .\.venv\Scripts\Activate.ps1
    pip install -r requirements.txt
    alembic upgrade head
-   uvicorn app.main:app --reload
+   uvicorn app.main:app --reload --port 8001
    ```
 
 ### Frontend
@@ -31,7 +31,24 @@ Next.js, FastAPI, PostgreSQL, and Supabase Auth.
    ```
 
 The frontend runs at `http://localhost:3000`; the API runs at
-`http://127.0.0.1:8000`.
+`http://127.0.0.1:8001`. The frontend calls the API through the
+`/api/backend` proxy route, which forwards to `BACKEND_INTERNAL_URL`
+(see `frontend/.env.example`) — keep that value in sync with the port
+above.
+
+### Vbee TTS
+
+Vbee credentials belong in `backend/.env`, never in `frontend/.env.local`:
+
+```env
+VBEE_APP_ID=your-vbee-app-id
+VBEE_TOKEN=your-vbee-token
+VBEE_VOICE_CODE=en-US-Standard-F
+```
+
+The backend calls Vbee Realtime TTS when a user presses the audio button and
+returns the MP3 stream without exposing the Vbee token. Restart the FastAPI
+server after changing `backend/.env`.
 
 ## Quality checks
 

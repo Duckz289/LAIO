@@ -18,8 +18,24 @@ Errors use FastAPI's `{ "detail": ... }` shape.
 - `PUT /vocab-items/{vocab_id}`
 - `DELETE /vocab-items/{vocab_id}`
 
+Notebook responses include the database-backed aggregate fields `vocab_count`,
+`mastered_count`, and `due_count`. `due_count` follows the SRS schedule in
+`vocab_progress`; `is_mastered` remains an independent UI flag.
+
 Vocabulary responses include optional schedule fields:
 `next_review_date`, `repetition_count`, `interval_days`, and `ease_factor`.
+
+### Vocabulary audio
+
+`POST /vocab-items/{vocab_id}/audio`
+
+Generates and returns an `audio/mpeg` stream for the vocabulary word using
+Vbee Realtime TTS. The endpoint is intended for short text such as a single
+vocabulary word; audio is cached by the active browser session.
+
+The endpoint returns `503` when Vbee is not configured and `502` when Vbee
+cannot generate audio. The Vbee token is server-side only and is never exposed
+to the frontend.
 
 ## Learning
 
@@ -52,6 +68,12 @@ contains the updated review schedule.
 ### `POST /learning-sessions/{session_id}/complete`
 
 Completes an active session and returns final counters and accuracy.
+
+### `POST /learning-sessions/{session_id}/abandon`
+
+Closes an interrupted active session without changing its submitted answers.
+Starting a new session also abandons any older active session owned by the same
+user.
 
 ## Reviews and analytics
 

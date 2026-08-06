@@ -66,12 +66,16 @@ def apply_review(
         select(VocabProgress).where(
             VocabProgress.vocab_item_id == vocab_item.id,
             VocabProgress.user_id == user_id,
-        )
+        ).with_for_update()
     )
     if progress is None:
         progress = VocabProgress(vocab_item_id=vocab_item.id, user_id=user_id)
         db.add(progress)
         db.flush()
+
+    current_date = db.scalar(select(func.current_date()))
+    if progress.next_review_date > current_date:
+        raise ValueError("Vocabulary item is no longer due")
 
     ease_before = progress.ease_factor
     interval_before = progress.interval_days
@@ -80,6 +84,7 @@ def apply_review(
         current_interval=interval_before,
         current_repetition=progress.repetition_count,
         score=score,
+        today=current_date,
     )
 
     progress.ease_factor = result["ease_factor"]
@@ -95,11 +100,11 @@ def apply_review(
         score=score,
         review_type=ReviewTypeEnum(review_type),
         time_spent_ms=time_spent_ms,
-        ease_factor_before=ease_before,
-        ease_factor_after=progress.ease_factor,
-        interval_days_before=interval_before,
-        interval_days_after=progress.interval_days,
-        next_review_date=progress.next_review_date,
+        ease_before=ease_before,
+        ease_after=progress.ease_factor,
+        interval_before=interval_before,
+        interval_after=progress.interval_days,
+        next_review_date_after=progress.next_review_date,
     )
     db.add(review)
     db.flush()

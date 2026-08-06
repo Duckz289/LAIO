@@ -1,5 +1,5 @@
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.api.deps import get_current_user
@@ -17,9 +17,9 @@ def create_vocab_item(
     notebook_id: UUID,
     data: VocabItemCreate,
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user),
+    user_id: UUID = Depends(get_current_user),
 ):
-    vocab = vocab_service.create_vocab_item(db, notebook_id, UUID(user_id), data)
+    vocab = vocab_service.create_vocab_item(db, notebook_id, user_id, data)
     if vocab is None:
         raise HTTPException(status_code=404, detail="Notebook not found")
     return vocab
@@ -28,11 +28,11 @@ def create_vocab_item(
 @router.get("/notebook/{notebook_id}/search", response_model=VocabItemListResponse)
 def search_vocab_items(
     notebook_id: UUID,
-    q: str,
+    q: str = Query(min_length=1, max_length=500),
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user),
+    user_id: UUID = Depends(get_current_user),
 ):
-    result = vocab_service.search_vocab_items(db, notebook_id, UUID(user_id), q)
+    result = vocab_service.search_vocab_items(db, notebook_id, user_id, q)
     if result is None:
         raise HTTPException(status_code=404, detail="Notebook not found")
     items, total = result
@@ -43,9 +43,9 @@ def search_vocab_items(
 def list_vocab_items(
     notebook_id: UUID,
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user),
+    user_id: UUID = Depends(get_current_user),
 ):
-    result = vocab_service.list_vocab_items(db, notebook_id, UUID(user_id))
+    result = vocab_service.list_vocab_items(db, notebook_id, user_id)
     if result is None:
         raise HTTPException(status_code=404, detail="Notebook not found")
     items, total = result
@@ -56,9 +56,9 @@ def list_vocab_items(
 def get_vocab_item(
     vocab_id: UUID,
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user),
+    user_id: UUID = Depends(get_current_user),
 ):
-    vocab = vocab_service.get_vocab_item(db, vocab_id, UUID(user_id))
+    vocab = vocab_service.get_vocab_item(db, vocab_id, user_id)
     if not vocab:
         raise HTTPException(status_code=404, detail="Vocab item not found")
     return vocab
@@ -69,9 +69,9 @@ def update_vocab_item(
     vocab_id: UUID,
     data: VocabItemUpdate,
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user),
+    user_id: UUID = Depends(get_current_user),
 ):
-    vocab = vocab_service.update_vocab_item(db, vocab_id, UUID(user_id), data)
+    vocab = vocab_service.update_vocab_item(db, vocab_id, user_id, data)
     if not vocab:
         raise HTTPException(status_code=404, detail="Vocab item not found")
     return vocab
@@ -81,7 +81,7 @@ def update_vocab_item(
 def delete_vocab_item(
     vocab_id: UUID,
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user),
+    user_id: UUID = Depends(get_current_user),
 ):
-    if not vocab_service.delete_vocab_item(db, vocab_id, UUID(user_id)):
+    if not vocab_service.delete_vocab_item(db, vocab_id, user_id):
         raise HTTPException(status_code=404, detail="Vocab item not found")

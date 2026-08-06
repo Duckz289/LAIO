@@ -3,6 +3,7 @@ $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $backendPath = Join-Path $repoRoot "backend"
 $frontendPath = Join-Path $repoRoot "frontend"
+$backendPort = 8001
 
 function Write-Step {
     param([string]$Message)
@@ -53,7 +54,7 @@ Write-Step "Dang mo backend tai cua so rieng..."
 Start-Process powershell.exe -ArgumentList @(
     "-NoExit",
     "-Command",
-    "Set-Location '$backendPath'; & '$pythonExe' -m uvicorn app.main:app --reload"
+    "Set-Location '$backendPath'; & '$pythonExe' -m uvicorn app.main:app --reload --port $backendPort"
 ) -WindowStyle Normal
 
 Write-Step "Dang mo frontend tai cua so rieng..."
@@ -65,4 +66,4 @@ Start-Process powershell.exe -ArgumentList @(
 
 Write-Step "Da bat local server."
 Write-Host "Frontend: http://localhost:3000" -ForegroundColor Green
-Write-Host "Backend:  http://127.0.0.1:8000" -ForegroundColor Green
+Write-Host "Backend:  http://127.0.0.1:$backendPort" -ForegroundColor Green

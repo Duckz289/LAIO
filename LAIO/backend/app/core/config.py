@@ -12,6 +12,14 @@ class Settings(BaseSettings):
     APP_NAME: str = "LAIO API"
     VERSION: str = "1.0.0"
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
+    VBEE_API_URL: str = "https://vbee.vn/api/v1/tts"
+    VBEE_APP_ID: str = ""
+    VBEE_TOKEN: str = ""
+    # A clear US-English voice, suitable for vocabulary pronunciation.
+    VBEE_VOICE_CODE: str = "en-US-Standard-F"
+    VBEE_AUDIO_TYPE: str = "mp3"
+    VBEE_BITRATE: int = 128
+    VBEE_SPEED_RATE: float = 0.9
 
     model_config = SettingsConfigDict(
         env_file=".env",

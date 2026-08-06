@@ -54,8 +54,8 @@ def test_learning_answer_updates_schedule_and_history() -> None:
     history = db.scalar(select(ReviewHistory))
     assert history is not None
     assert history.learning_session_id == learning_session.id
-    assert history.interval_days_before == 1
-    assert history.interval_days_after == 1
+    assert history.interval_before == 1
+    assert history.interval_after == 1
 
 
 def test_user_cannot_start_session_for_another_users_notebook() -> None:

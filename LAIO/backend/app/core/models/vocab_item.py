@@ -1,7 +1,17 @@
 from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, SmallInteger, String, Text, func
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    SmallInteger,
+    String,
+    Text,
+    func,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -10,16 +20,20 @@ from .base import Base
 
 class VocabItem(Base):
     __tablename__ = "vocab_items"
+    __table_args__ = (
+        CheckConstraint(
+            "difficulty_level BETWEEN 1 AND 5",
+            name="ck_vocab_items_difficulty",
+        ),
+    )
 
     notebook_id: Mapped[UUID] = mapped_column(
         ForeignKey("notebooks.id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
     )
     word: Mapped[str] = mapped_column(
         String(500),
         nullable=False,
-        index=True,
     )
     meaning: Mapped[str] = mapped_column(
         Text,
@@ -59,6 +73,11 @@ class VocabItem(Base):
         default=False,
         nullable=False,
     )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -75,11 +94,26 @@ class VocabItem(Base):
         "VocabProgress",
         back_populates="vocab_item",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        passive_deletes=True,
+        lazy="raise",
     )
     review_history: Mapped[List["ReviewHistory"]] = relationship(
         "ReviewHistory",
         back_populates="vocab_item",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        passive_deletes=True,
+        lazy="raise",
     )
+
+
+Index(
+    "idx_vocab_items_notebook",
+    VocabItem.notebook_id,
+    VocabItem.created_at.desc(),
+)
+Index(
+    "idx_vocab_items_word_trgm",
+    VocabItem.word,
+    postgresql_using="gin",
+    postgresql_ops={"word": "gin_trgm_ops"},
+)

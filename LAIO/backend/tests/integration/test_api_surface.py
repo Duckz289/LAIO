@@ -13,4 +13,6 @@ def test_learning_contract_is_exposed_in_openapi() -> None:
     schema = TestClient(app).get("/openapi.json").json()
     assert "/api/v1/learning-sessions" in schema["paths"]
     assert "/api/v1/learning-sessions/{session_id}/answers" in schema["paths"]
+    assert "/api/v1/learning-sessions/{session_id}/abandon" in schema["paths"]
     assert "/api/v1/progress/summary" in schema["paths"]
+    assert "/api/v1/vocab-items/{vocab_id}/audio" in schema["paths"]

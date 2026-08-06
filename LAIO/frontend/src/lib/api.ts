@@ -1,7 +1,7 @@
-import { supabase } from "./supabase";
+import { isSupabaseConfigured, supabase, supabaseConfigError } from "./supabase";
 
 const BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000/api/v1";
+  process.env.NEXT_PUBLIC_API_URL ?? "/api/backend";
 
 export interface NotebookRecord {
   id: string;
@@ -11,6 +11,9 @@ export interface NotebookRecord {
   is_archived: boolean;
   created_at: string;
   updated_at: string;
+  vocab_count: number;
+  mastered_count: number;
+  due_count: number;
 }
 
 export interface VocabRecord {
@@ -31,6 +34,18 @@ export interface VocabRecord {
   repetition_count: number;
   interval_days: number;
   ease_factor: number;
+}
+
+export interface VocabWriteInput {
+  word?: string;
+  meaning?: string;
+  pronunciation?: string | null;
+  example_sentence?: string;
+  audio_url?: string;
+  image_url?: string;
+  pos?: string | null;
+  difficulty_level?: number;
+  is_mastered?: boolean;
 }
 
 export interface LearningSession {
@@ -81,30 +96,85 @@ export class ApiError extends Error {
   }
 }
 
-async function getHeaders(): Promise<HeadersInit> {
-  const { data, error } = await supabase.auth.getSession();
-  if (error) throw error;
-
-  const headers: HeadersInit = { "Content-Type": "application/json" };
-  if (data.session?.access_token) {
-    headers.Authorization = `Bearer ${data.session.access_token}`;
+function readApiDetail(value: unknown): string | undefined {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (Array.isArray(value)) {
+    const messages = value
+      .map((item) => readApiDetail(item))
+      .filter((message): message is string => Boolean(message));
+    return messages.length > 0 ? messages.join("; ") : undefined;
   }
+  if (!value || typeof value !== "object") return undefined;
+
+  const record = value as Record<string, unknown>;
+  return (
+    readApiDetail(record.msg) ??
+    readApiDetail(record.message) ??
+    readApiDetail(record.detail) ??
+    readApiDetail(record.error)
+  );
+}
+
+async function getHeaders(forceRefresh = false): Promise<Headers> {
+  if (!isSupabaseConfigured) {
+    throw new ApiError(500, supabaseConfigError);
+  }
+
+  const { data, error } = forceRefresh
+    ? await supabase.auth.refreshSession()
+    : await supabase.auth.getSession();
+  if (error) throw new ApiError(401, error.message);
+  if (!data.session?.access_token) {
+    throw new ApiError(401, "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+  }
+
+  const headers = new Headers({ "Content-Type": "application/json" });
+  headers.set("Authorization", `Bearer ${data.session.access_token}`);
   return headers;
 }
 
 async function request<T>(path: string, init: RequestInit): Promise<T> {
-  const response = await fetch(`${BASE_URL}${path}`, {
-    ...init,
-    headers: await getHeaders(),
-  });
+  const send = async (forceRefresh = false) => {
+    const headers = new Headers(init.headers);
+    const authHeaders = await getHeaders(forceRefresh);
+    authHeaders.forEach((value, key) => headers.set(key, value));
+    return fetch(`${BASE_URL}${path}`, { ...init, headers });
+  };
+
+  let response: Response;
+  try {
+    response = await send();
+    if (response.status === 401) {
+      response = await send(true);
+    }
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw error;
+    }
+    throw new ApiError(
+      0,
+      "Không thể kết nối tới máy chủ. Kiểm tra backend/API URL rồi thử lại.",
+    );
+  }
 
   if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as {
-      detail?: string;
-    } | null;
+    const rawBody = await response.text();
+    let payload: unknown = null;
+    try {
+      payload = rawBody ? JSON.parse(rawBody) : null;
+    } catch {
+      payload = null;
+    }
+    const fallbackBody = rawBody.trim();
+    const detail =
+      readApiDetail(payload) ??
+      (fallbackBody && !fallbackBody.startsWith("<") ? fallbackBody : undefined);
     throw new ApiError(
       response.status,
-      payload?.detail ?? `${init.method ?? "GET"} ${path} failed`,
+      detail || `${init.method ?? "GET"} ${path} failed with HTTP ${response.status}`,
     );
   }
 
@@ -112,33 +182,82 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export function get<T>(path: string): Promise<T> {
-  return request<T>(path, { method: "GET" });
+export function get<T>(path: string, options?: Pick<RequestInit, "signal">): Promise<T> {
+  return request<T>(path, { method: "GET", ...options });
 }
 
-export function post<T>(path: string, body?: unknown): Promise<T> {
+export function post<T>(
+  path: string,
+  body?: unknown,
+  options?: Pick<RequestInit, "signal">,
+): Promise<T> {
   return request<T>(path, {
     method: "POST",
     body: body === undefined ? undefined : JSON.stringify(body),
+    ...options,
   });
 }
 
-export function put<T>(path: string, body?: unknown): Promise<T> {
+export function put<T>(
+  path: string,
+  body?: unknown,
+  options?: Pick<RequestInit, "signal">,
+): Promise<T> {
   return request<T>(path, {
     method: "PUT",
     body: body === undefined ? undefined : JSON.stringify(body),
+    ...options,
   });
 }
 
-export function patch<T>(path: string, body?: unknown): Promise<T> {
+export function patch<T>(
+  path: string,
+  body?: unknown,
+  options?: Pick<RequestInit, "signal">,
+): Promise<T> {
   return request<T>(path, {
     method: "PATCH",
     body: body === undefined ? undefined : JSON.stringify(body),
+    ...options,
   });
 }
 
-export function del<T>(path: string): Promise<T> {
-  return request<T>(path, { method: "DELETE" });
+export function del<T>(path: string, options?: Pick<RequestInit, "signal">): Promise<T> {
+  return request<T>(path, { method: "DELETE", ...options });
+}
+
+async function postAudio(path: string): Promise<string> {
+  const send = async (forceRefresh = false) => {
+    const headers = await getHeaders(forceRefresh);
+    return fetch(`${BASE_URL}${path}`, { method: "POST", headers });
+  };
+
+  let response: Response;
+  try {
+    response = await send();
+    if (response.status === 401) response = await send(true);
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw new ApiError(0, "Không thể kết nối tới máy chủ để tạo audio.");
+  }
+
+  if (!response.ok) {
+    const rawBody = await response.text();
+    let payload: unknown = null;
+    try {
+      payload = rawBody ? JSON.parse(rawBody) : null;
+    } catch {
+      payload = null;
+    }
+    throw new ApiError(
+      response.status,
+      readApiDetail(payload) || "Không thể tạo audio bằng VBEE.",
+    );
+  }
+
+  const blob = await response.blob();
+  if (blob.size === 0) throw new ApiError(502, "VBEE trả về audio rỗng.");
+  return URL.createObjectURL(blob);
 }
 
 export const api = {
@@ -147,39 +266,39 @@ export const api = {
   put,
   patch,
   delete: del,
-  getNotebooks: () =>
-    get<{ notebooks: NotebookRecord[]; total: number }>("/notebooks/"),
-  getNotebook: (id: string) => get<NotebookRecord>(`/notebooks/${id}`),
+  getNotebooks: (options?: Pick<RequestInit, "signal">) =>
+    get<{ notebooks: NotebookRecord[]; total: number }>("/notebooks", options),
+  getNotebook: (id: string, options?: Pick<RequestInit, "signal">) =>
+    get<NotebookRecord>(`/notebooks/${id}`, options),
   createNotebook: (body: { title: string; description?: string }) =>
-    post<NotebookRecord>("/notebooks/", body),
-  deleteNotebook: (id: string) => del<void>(`/notebooks/${id}`),
-  getVocabs: (notebookId: string) =>
+    post<NotebookRecord>("/notebooks", body),
+  deleteNotebook: (id: string, options?: Pick<RequestInit, "signal">) =>
+    del<void>(`/notebooks/${id}`, options),
+  getVocabs: (notebookId: string, options?: Pick<RequestInit, "signal">) =>
     get<{ vocab_items: VocabRecord[]; total: number }>(
       `/vocab-items/notebook/${notebookId}`,
+      options,
     ),
   createVocab: (
     notebookId: string,
-    body: Pick<VocabRecord, "word" | "meaning"> &
-      Partial<
-        Pick<
-          VocabRecord,
-          "pronunciation" | "example_sentence" | "difficulty_level"
-        >
-      >,
+    body: Required<Pick<VocabWriteInput, "word" | "meaning">> & VocabWriteInput,
   ) => post<VocabRecord>(`/vocab-items/?notebook_id=${notebookId}`, body),
-  updateVocab: (id: string, body: Partial<VocabRecord>) =>
-    put<VocabRecord>(`/vocab-items/${id}`, body),
-  deleteVocab: (id: string) => del<void>(`/vocab-items/${id}`),
-  getDueReviews: (notebookId?: string) =>
+  updateVocab: (id: string, body: VocabWriteInput, options?: Pick<RequestInit, "signal">) =>
+    put<VocabRecord>(`/vocab-items/${id}`, body, options),
+  deleteVocab: (id: string, options?: Pick<RequestInit, "signal">) =>
+    del<void>(`/vocab-items/${id}`, options),
+  generateVocabAudio: (id: string) => postAudio(`/vocab-items/${id}/audio`),
+  getDueReviews: (notebookId?: string, options?: Pick<RequestInit, "signal">) =>
     get<{ items: DueReviewItem[]; total: number }>(
       `/reviews/due${notebookId ? `?notebook_id=${notebookId}` : ""}`,
+      options,
     ),
-  startLearningSession: (notebookId?: string) =>
+  startLearningSession: (notebookId?: string, options?: Pick<RequestInit, "signal">) =>
     post<LearningSession>("/learning-sessions", {
       notebook_id: notebookId ?? null,
       limit: 20,
       skill_type: "vocabulary",
-    }),
+    }, options),
   submitLearningAnswer: (
     sessionId: string,
     body: {
@@ -202,5 +321,8 @@ export const api = {
     }>(`/learning-sessions/${sessionId}/answers`, body),
   completeLearningSession: (sessionId: string) =>
     post<LearningSession>(`/learning-sessions/${sessionId}/complete`),
-  getProgressSummary: () => get<ProgressSummary>("/progress/summary"),
+  abandonLearningSession: (sessionId: string) =>
+    post<LearningSession>(`/learning-sessions/${sessionId}/abandon`),
+  getProgressSummary: (options?: Pick<RequestInit, "signal">) =>
+    get<ProgressSummary>("/progress/summary", options),
 };

@@ -6,6 +6,7 @@ from app.api.v1 import (
     progress,
     reviews,
     vocab_items,
+    voice,
 )
 
 api_router = APIRouter()
@@ -16,3 +17,4 @@ api_router.include_router(reviews.router, prefix="/reviews", tags=["reviews"])
 api_router.include_router(game_sessions.router, prefix="/game-sessions", tags=["game-sessions"])
 api_router.include_router(learning_sessions.router, prefix="/learning-sessions", tags=["learning"])
 api_router.include_router(progress.router, prefix="/progress", tags=["analytics"])
+api_router.include_router(voice.router, prefix="/vocab-items", tags=["vocabulary-audio"])

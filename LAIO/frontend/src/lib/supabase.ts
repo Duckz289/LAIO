@@ -1,12 +1,27 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const rawSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
+const rawSupabaseAnonKey =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ?? "";
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn(
-    "Cảnh báo: Thiếu cấu hình NEXT_PUBLIC_SUPABASE_URL hoặc NEXT_PUBLIC_SUPABASE_ANON_KEY trong file .env.local"
-  );
+const isPlaceholderValue = (value: string) =>
+  !value || value.includes("your-project") || value === "your-anon-key";
+
+export const isSupabaseConfigured =
+  !isPlaceholderValue(rawSupabaseUrl) && !isPlaceholderValue(rawSupabaseAnonKey);
+
+export const supabaseConfigError =
+  "Thiếu cấu hình Supabase. Hãy tạo frontend/.env.local với NEXT_PUBLIC_SUPABASE_URL và NEXT_PUBLIC_SUPABASE_ANON_KEY rồi restart npm run dev.";
+
+const supabaseUrl = isSupabaseConfigured
+  ? rawSupabaseUrl
+  : "http://127.0.0.1:54321";
+const supabaseAnonKey = isSupabaseConfigured
+  ? rawSupabaseAnonKey
+  : "missing-supabase-anon-key";
+
+if (!isSupabaseConfigured && process.env.NODE_ENV !== "production") {
+  console.warn(supabaseConfigError);
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {

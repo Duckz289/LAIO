@@ -1,9 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
 import { X, Mail, Lock, ArrowRight, Github } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { isSupabaseConfigured, supabase, supabaseConfigError } from "@/lib/supabase";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -11,39 +10,49 @@ interface AuthModalProps {
 }
 
 export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
-  const router = useRouter();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
 
   if (!isOpen) return null;
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isSupabaseConfigured) {
+      setErrorMsg(supabaseConfigError);
+      return;
+    }
+
     setLoading(true);
     setErrorMsg("");
+    setSuccessMsg("");
 
     try {
       if (isSignUp) {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
-        alert("Đăng ký thành công! Hãy kiểm tra hộp thư Email để xác thực tài khoản.");
-        onClose();
+        setSuccessMsg("Đăng ký thành công. Hãy kiểm tra email để xác thực tài khoản.");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        router.replace("/notebooks");
+        window.location.href = "/notebooks";
       }
-    } catch (error: any) {
-      setErrorMsg(error.message || "Đã xảy ra lỗi, vui lòng thử lại.");
+    } catch (error: unknown) {
+      setErrorMsg(error instanceof Error ? error.message : "Đã xảy ra lỗi, vui lòng thử lại.");
     } finally {
       setLoading(false);
     }
   };
 
   const handleOAuthLogin = async (provider: "github") => {
+    if (!isSupabaseConfigured) {
+      setErrorMsg(supabaseConfigError);
+      return;
+    }
+
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: provider,
@@ -52,13 +61,13 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         },
       });
       if (error) throw error;
-    } catch (error: any) {
-      alert(error.message);
+    } catch (error: unknown) {
+      setErrorMsg(error instanceof Error ? error.message : "Không thể đăng nhập bằng GitHub.");
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
       {/* Backdrop - xuất hiện NGAY LẬP TỨC, không animation */}
       <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
 
@@ -74,7 +83,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           </button>
 
           <div className="text-center mt-2">
-            <h2 className="text-2xl font-bold text-slate-900">
+            <h2 id="auth-modal-title" className="text-2xl font-bold text-slate-900">
               {isSignUp ? "Tạo tài khoản mới" : "Chào mừng trở lại"}
             </h2>
             <p className="text-sm text-slate-500 mt-1">
@@ -83,8 +92,20 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           </div>
 
           {errorMsg && (
-            <div className="bg-red-50 border border-red-100 text-red-600 text-xs px-3 py-2 rounded-xl animate-shake">
+            <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-600 animate-shake">
               ⚠️ {errorMsg}
+            </div>
+          )}
+
+          {successMsg && (
+            <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+              {successMsg}
+            </div>
+          )}
+
+          {!isSupabaseConfigured && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800">
+              Tạo file <code className="font-semibold">frontend/.env.local</code> rồi thêm Supabase URL và public anon key. Không dùng secret key ở frontend.
             </div>
           )}
 
@@ -121,7 +142,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !isSupabaseConfigured}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium py-2.5 rounded-xl transition-all duration-200 flex items-center justify-center gap-1 mt-2 text-sm shadow-sm"
             >
               {loading ? (
@@ -144,7 +165,8 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           <button
             type="button"
             onClick={() => handleOAuthLogin("github")}
-            className="w-full border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium py-2.5 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 text-sm shadow-sm"
+            disabled={!isSupabaseConfigured}
+            className="w-full border border-slate-200 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 text-slate-700 font-medium py-2.5 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 text-sm shadow-sm"
           >
             <Github className="w-4 h-4" />
             GitHub

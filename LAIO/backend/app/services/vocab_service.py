@@ -1,39 +1,89 @@
 from uuid import UUID
-from sqlalchemy import select, func, or_
+
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
-from app.core.models.vocab_item import VocabItem
+
 from app.core.models.notebook import Notebook
+from app.core.models.vocab_item import VocabItem
 from app.core.models.vocab_progress import VocabProgress
 from app.schemas.vocab_item import VocabItemCreate, VocabItemUpdate
 
 
+def _serialize_vocab(vocab: VocabItem, progress: VocabProgress | None) -> dict:
+    return {
+        **{
+            column.name: getattr(vocab, column.name)
+            for column in VocabItem.__table__.columns
+        },
+        "next_review_date": progress.next_review_date if progress else None,
+        "repetition_count": progress.repetition_count if progress else 0,
+        "interval_days": progress.interval_days if progress else 1,
+        "ease_factor": progress.ease_factor if progress else 2.5,
+    }
+
+
+def _progress_for(db: Session, vocab_id: UUID, user_id: UUID) -> VocabProgress | None:
+    return db.scalar(
+        select(VocabProgress).where(
+            VocabProgress.vocab_item_id == vocab_id,
+            VocabProgress.user_id == user_id,
+        )
+    )
+
+
 def verify_notebook_owner(db: Session, notebook_id: UUID, user_id: UUID) -> bool:
-    stmt = select(Notebook).where(Notebook.id == notebook_id, Notebook.user_id == user_id)
-    return db.scalar(stmt) is not None
+    return db.scalar(
+        select(Notebook.id).where(
+            Notebook.id == notebook_id,
+            Notebook.user_id == user_id,
+        )
+    ) is not None
 
 
-def create_vocab_item(db: Session, notebook_id: UUID, user_id: UUID, data: VocabItemCreate) -> VocabItem | None:
+def create_vocab_item(
+    db: Session,
+    notebook_id: UUID,
+    user_id: UUID,
+    data: VocabItemCreate,
+) -> dict | None:
     if not verify_notebook_owner(db, notebook_id, user_id):
         return None
-    vocab = VocabItem(notebook_id=notebook_id, word=data.word, meaning=data.meaning,
-                      pronunciation=data.pronunciation, example_sentence=data.example_sentence,
-                      audio_url=data.audio_url, image_url=data.image_url,
-                      pos=data.pos, difficulty_level=data.difficulty_level)
+    vocab = VocabItem(notebook_id=notebook_id, **data.model_dump())
     db.add(vocab)
     db.flush()
-    db.add(VocabProgress(vocab_item_id=vocab.id, user_id=user_id))
-    db.flush()
-    db.refresh(vocab)
-    return vocab
+
+    # Schema v2 normally creates this row in the database trigger. Keep a
+    # conditional fallback for databases where the trigger has not been
+    # installed yet; the lookup after flush prevents a duplicate row when the
+    # trigger is present.
+    progress = _progress_for(db, vocab.id, user_id)
+    if progress is None:
+        progress = VocabProgress(vocab_item_id=vocab.id, user_id=user_id)
+        db.add(progress)
+        db.flush()
+    return _serialize_vocab(vocab, progress)
 
 
-def get_vocab_item(db: Session, vocab_id: UUID, user_id: UUID) -> VocabItem | None:
-    stmt = (select(VocabItem).join(Notebook, Notebook.id == VocabItem.notebook_id)
-            .where(VocabItem.id == vocab_id, Notebook.user_id == user_id))
-    return db.scalar(stmt)
+def _get_vocab_entity(
+    db: Session, vocab_id: UUID, user_id: UUID
+) -> VocabItem | None:
+    return db.scalar(
+        select(VocabItem)
+        .join(Notebook, Notebook.id == VocabItem.notebook_id)
+        .where(VocabItem.id == vocab_id, Notebook.user_id == user_id)
+    )
 
 
-def list_vocab_items(db: Session, notebook_id: UUID, user_id: UUID) -> tuple[list[dict], int] | None:
+def get_vocab_item(db: Session, vocab_id: UUID, user_id: UUID) -> dict | None:
+    vocab = _get_vocab_entity(db, vocab_id, user_id)
+    if vocab is None:
+        return None
+    return _serialize_vocab(vocab, _progress_for(db, vocab.id, user_id))
+
+
+def list_vocab_items(
+    db: Session, notebook_id: UUID, user_id: UUID
+) -> tuple[list[dict], int] | None:
     if not verify_notebook_owner(db, notebook_id, user_id):
         return None
     stmt = (
@@ -46,49 +96,70 @@ def list_vocab_items(db: Session, notebook_id: UUID, user_id: UUID) -> tuple[lis
         .where(VocabItem.notebook_id == notebook_id)
         .order_by(VocabItem.created_at.desc())
     )
-    items = [
-        {
-            **{
-                column.name: getattr(vocab, column.name)
-                for column in VocabItem.__table__.columns
-            },
-            "next_review_date": progress.next_review_date if progress else None,
-            "repetition_count": progress.repetition_count if progress else 0,
-            "interval_days": progress.interval_days if progress else 1,
-            "ease_factor": progress.ease_factor if progress else 2.5,
-        }
-        for vocab, progress in db.execute(stmt).all()
-    ]
-    total = db.scalar(select(func.count()).select_from(VocabItem).where(VocabItem.notebook_id == notebook_id)) or 0
+    items = [_serialize_vocab(vocab, progress) for vocab, progress in db.execute(stmt)]
+    total = db.scalar(
+        select(func.count())
+        .select_from(VocabItem)
+        .where(VocabItem.notebook_id == notebook_id)
+    ) or 0
     return items, total
 
 
-def update_vocab_item(db: Session, vocab_id: UUID, user_id: UUID, data: VocabItemUpdate) -> VocabItem | None:
-    vocab = get_vocab_item(db, vocab_id, user_id)
-    if not vocab:
+def update_vocab_item(
+    db: Session,
+    vocab_id: UUID,
+    user_id: UUID,
+    data: VocabItemUpdate,
+) -> dict | None:
+    vocab = _get_vocab_entity(db, vocab_id, user_id)
+    if vocab is None:
         return None
     for key, value in data.model_dump(exclude_unset=True).items():
         setattr(vocab, key, value)
     db.flush()
-    db.refresh(vocab)
-    return vocab
+    return _serialize_vocab(vocab, _progress_for(db, vocab.id, user_id))
 
 
 def delete_vocab_item(db: Session, vocab_id: UUID, user_id: UUID) -> bool:
-    vocab = get_vocab_item(db, vocab_id, user_id)
-    if not vocab:
+    vocab = _get_vocab_entity(db, vocab_id, user_id)
+    if vocab is None:
         return False
     db.delete(vocab)
     db.flush()
     return True
 
 
-def search_vocab_items(db: Session, notebook_id: UUID, user_id: UUID, keyword: str) -> tuple[list[VocabItem], int] | None:
+def _escape_like(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def search_vocab_items(
+    db: Session,
+    notebook_id: UUID,
+    user_id: UUID,
+    keyword: str,
+) -> tuple[list[dict], int] | None:
     if not verify_notebook_owner(db, notebook_id, user_id):
         return None
-    stmt = (select(VocabItem).where(
-        VocabItem.notebook_id == notebook_id,
-        or_(func.lower(VocabItem.word).contains(keyword.lower()),
-            func.lower(VocabItem.meaning).contains(keyword.lower()))))
-    items = db.scalars(stmt).all()
-    return list(items), len(items)
+    normalized = keyword.strip()
+    if not normalized:
+        return [], 0
+    pattern = f"%{_escape_like(normalized)}%"
+    stmt = (
+        select(VocabItem, VocabProgress)
+        .outerjoin(
+            VocabProgress,
+            (VocabProgress.vocab_item_id == VocabItem.id)
+            & (VocabProgress.user_id == user_id),
+        )
+        .where(
+            VocabItem.notebook_id == notebook_id,
+            or_(
+                VocabItem.word.ilike(pattern, escape="\\"),
+                VocabItem.meaning.ilike(pattern, escape="\\"),
+            ),
+        )
+        .order_by(VocabItem.created_at.desc())
+    )
+    items = [_serialize_vocab(vocab, progress) for vocab, progress in db.execute(stmt)]
+    return items, len(items)

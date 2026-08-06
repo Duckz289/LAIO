@@ -1,19 +1,23 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.models.learning_session import LearningSessionStatus
 from app.core.models.review_history import ReviewTypeEnum
 
 
 class LearningSessionCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
     notebook_id: UUID | None = None
     limit: int = Field(default=20, ge=1, le=50)
     skill_type: str = Field(default="vocabulary", pattern="^vocabulary$")
 
 
 class LearningAnswerCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     vocab_item_id: UUID
     score: int = Field(ge=0, le=5)
     review_type: ReviewTypeEnum = ReviewTypeEnum.FLASHCARD

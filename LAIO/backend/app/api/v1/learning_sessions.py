@@ -21,9 +21,9 @@ router = APIRouter()
 def create_learning_session(
     data: LearningSessionCreate,
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user),
+    user_id: UUID = Depends(get_current_user),
 ):
-    session = learning_service.create_session(db, UUID(user_id), data)
+    session = learning_service.create_session(db, user_id, data)
     if session is None:
         raise HTTPException(status_code=404, detail="Notebook not found")
     return session
@@ -34,11 +34,11 @@ def submit_learning_answer(
     session_id: UUID,
     data: LearningAnswerCreate,
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user),
+    user_id: UUID = Depends(get_current_user),
 ):
     try:
         submitted = learning_service.submit_answer(
-            db, UUID(user_id), session_id, data
+            db, user_id, session_id, data
         )
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
@@ -59,9 +59,21 @@ def submit_learning_answer(
 def complete_learning_session(
     session_id: UUID,
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user),
+    user_id: UUID = Depends(get_current_user),
 ):
-    session = learning_service.complete_session(db, UUID(user_id), session_id)
+    session = learning_service.complete_session(db, user_id, session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Active session not found")
+    return session
+
+
+@router.post("/{session_id}/abandon", response_model=LearningSessionResponse)
+def abandon_learning_session(
+    session_id: UUID,
+    db: Session = Depends(get_db),
+    user_id: UUID = Depends(get_current_user),
+):
+    session = learning_service.abandon_session(db, user_id, session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Active session not found")
     return session

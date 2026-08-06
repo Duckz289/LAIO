@@ -27,9 +27,14 @@ Khong tu tao route/model/co che moi ngoai milestone spec. Neu thay docs lech cod
 - Router dang mount notebooks, vocab-items, reviews, game-sessions, learning-sessions, progress trong `backend/app/api/v1/router.py:13` den `backend/app/api/v1/router.py:18`.
 - Auth backend dung bearer token Supabase. Neu `SUPABASE_JWT_SECRET` co gia tri thi decode local trong `backend/app/api/deps.py:15` den `backend/app/api/deps.py:28`; neu khong thi fallback goi Supabase Auth API trong `backend/app/api/deps.py:30` den `backend/app/api/deps.py:44`.
 - `LearningSession` ton tai that: model o `backend/app/core/models/learning_session.py:19`, schemas o `backend/app/schemas/learning.py:10`, service o `backend/app/services/learning_service.py:16`, routes o `backend/app/api/v1/learning_sessions.py:20` den `backend/app/api/v1/learning_sessions.py:58`.
-- `VocabProgress` duoc tao khi tao vocab o `backend/app/services/vocab_service.py:24`.
+- `VocabProgress` duoc database trigger `trg_vocab_items_create_progress` tao
+  dong bo sau khi insert `vocab_items`; application service khong insert row
+  thu hai.
 - List vocab tra schedule fields qua join `VocabProgress` o `backend/app/services/vocab_service.py:40` den `backend/app/services/vocab_service.py:58`; schema co `next_review_date`, `repetition_count`, `interval_days`, `ease_factor` o `backend/app/schemas/vocab_item.py:46` den `backend/app/schemas/vocab_item.py:49`.
-- SM-2 dang duoc goi trong duong learning-session submit: `backend/app/services/learning_service.py:108` den `backend/app/services/learning_service.py:116` goi `apply_review()`, va `backend/app/services/review_service.py:78` den `backend/app/services/review_service.py:104` update schedule + ghi `ReviewHistory`.
+- SM-2 dang duoc goi trong duong learning-session submit; schedule hien tai
+  duoc update trong `vocab_progress`, con snapshot ghi dung cac cot schema v2
+  `ease_before/ease_after`, `interval_before/interval_after`, va
+  `next_review_date_after` trong `review_history`.
 - `GET /progress/summary` ton tai o `backend/app/api/v1/progress.py:14`, service tinh counters o `backend/app/services/analytics_service.py:13`.
 - Frontend API client canonical la `frontend/src/lib/api.ts`. Pages dung `api.*`, vi du notebooks page import o `frontend/src/app/notebooks/page.tsx:5`, detail page import o `frontend/src/app/notebooks/[id]/page.tsx:20`.
 - `useAuth` hoat dong va redirect khi thieu session: `frontend/src/hooks/useAuth.ts:9` den `frontend/src/hooks/useAuth.ts:37`.
@@ -43,7 +48,7 @@ Doc `API_CONTRACT.md` truoc khi sua bat ky API nao. Tom tat route dang dung:
 - Notebooks: `GET/POST /notebooks/`, `GET/PUT/DELETE /notebooks/{id}`.
 - Vocab: `POST /vocab-items/?notebook_id=...`, `GET /vocab-items/notebook/{notebook_id}`, `GET/PUT/DELETE /vocab-items/{id}`, `GET /vocab-items/notebook/{notebook_id}/search?q=...`.
 - Reviews: `GET /reviews/due?limit=20&notebook_id=...`.
-- Learning: `POST /learning-sessions`, `POST /learning-sessions/{session_id}/answers`, `POST /learning-sessions/{session_id}/complete`.
+- Learning: `POST /learning-sessions`, `POST /learning-sessions/{session_id}/answers`, `POST /learning-sessions/{session_id}/complete`, `POST /learning-sessions/{session_id}/abandon`.
 - Analytics: `GET /progress/summary`.
 - Game sessions: backend route co, frontend hien chua dung.
 

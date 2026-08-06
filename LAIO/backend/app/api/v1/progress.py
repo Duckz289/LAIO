@@ -14,6 +14,6 @@ router = APIRouter()
 @router.get("/summary", response_model=ProgressSummaryResponse)
 def progress_summary(
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user),
+    user_id: UUID = Depends(get_current_user),
 ):
-    return get_progress_summary(db, UUID(user_id))
+    return get_progress_summary(db, user_id)

@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.core.models.learning_session import LearningSession, LearningSessionStatus
@@ -26,6 +26,19 @@ def create_session(
         )
     ):
         return None
+
+    now = datetime.now(timezone.utc)
+    db.execute(
+        update(LearningSession)
+        .where(
+            LearningSession.user_id == user_id,
+            LearningSession.status == LearningSessionStatus.ACTIVE,
+        )
+        .values(
+            status=LearningSessionStatus.ABANDONED,
+            completed_at=now,
+        )
+    )
 
     due_stmt = (
         select(func.count())
@@ -53,7 +66,7 @@ def create_session(
             if due_count
             else LearningSessionStatus.COMPLETED
         ),
-        completed_at=None if due_count else datetime.now(timezone.utc),
+        completed_at=None if due_count else now,
     )
     db.add(session)
     db.flush()
@@ -68,11 +81,13 @@ def submit_answer(
     data: LearningAnswerCreate,
 ) -> tuple[LearningSession, dict] | None:
     session = db.scalar(
-        select(LearningSession).where(
+        select(LearningSession)
+        .where(
             LearningSession.id == session_id,
             LearningSession.user_id == user_id,
             LearningSession.status == LearningSessionStatus.ACTIVE,
         )
+        .with_for_update()
     )
     if session is None:
         return None
@@ -97,6 +112,7 @@ def submit_answer(
         .where(
             VocabItem.id == data.vocab_item_id,
             Notebook.user_id == user_id,
+            Notebook.is_archived.is_(False),
             VocabProgress.next_review_date <= func.current_date(),
         )
     )
@@ -117,9 +133,6 @@ def submit_answer(
     session.answered_items += 1
     if result["correct"]:
         session.correct_answers += 1
-    session.accuracy_percentage = round(
-        session.correct_answers / session.answered_items * 100, 2
-    )
     db.flush()
     db.refresh(session)
     return session, result
@@ -129,15 +142,38 @@ def complete_session(
     db: Session, user_id: UUID, session_id: UUID
 ) -> LearningSession | None:
     session = db.scalar(
-        select(LearningSession).where(
+        select(LearningSession)
+        .where(
             LearningSession.id == session_id,
             LearningSession.user_id == user_id,
             LearningSession.status == LearningSessionStatus.ACTIVE,
         )
+        .with_for_update()
     )
     if session is None:
         return None
     session.status = LearningSessionStatus.COMPLETED
+    session.completed_at = datetime.now(timezone.utc)
+    db.flush()
+    db.refresh(session)
+    return session
+
+
+def abandon_session(
+    db: Session, user_id: UUID, session_id: UUID
+) -> LearningSession | None:
+    session = db.scalar(
+        select(LearningSession)
+        .where(
+            LearningSession.id == session_id,
+            LearningSession.user_id == user_id,
+            LearningSession.status == LearningSessionStatus.ACTIVE,
+        )
+        .with_for_update()
+    )
+    if session is None:
+        return None
+    session.status = LearningSessionStatus.ABANDONED
     session.completed_at = datetime.now(timezone.utc)
     db.flush()
     db.refresh(session)
