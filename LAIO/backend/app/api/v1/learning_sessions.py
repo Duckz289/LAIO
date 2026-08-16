@@ -23,7 +23,14 @@ def create_learning_session(
     db: Session = Depends(get_db),
     user_id: UUID = Depends(get_current_user),
 ):
-    session = learning_service.create_session(db, user_id, data)
+    try:
+        session = learning_service.create_session(db, user_id, data)
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Another learning session was started concurrently. Try again.",
+        ) from exc
     if session is None:
         raise HTTPException(status_code=404, detail="Notebook not found")
     return session
@@ -43,6 +50,7 @@ def submit_learning_answer(
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except IntegrityError as exc:
+        db.rollback()
         raise HTTPException(
             status_code=409,
             detail="Vocabulary item was already answered in this session",

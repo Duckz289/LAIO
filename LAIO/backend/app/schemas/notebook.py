@@ -9,7 +9,7 @@ class NotebookCreate(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     title: str = Field(..., min_length=1, max_length=255)
-    description: str = Field(default="")
+    description: str = Field(default="", max_length=5_000)
 
 
 class NotebookUpdate(BaseModel):
@@ -18,7 +18,7 @@ class NotebookUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     title: str | None = Field(None, min_length=1, max_length=255)
-    description: str | None = None
+    description: str | None = Field(default=None, max_length=5_000)
     is_archived: bool | None = None
 
     @field_validator("title", "description", "is_archived")
@@ -49,3 +49,5 @@ class NotebookListResponse(BaseModel):
     """Schema for list of notebooks."""
     notebooks: list[NotebookResponse]
     total: int
+    limit: int
+    offset: int

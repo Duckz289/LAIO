@@ -1,6 +1,6 @@
 'use client';
 
-import { BookOpen, Plus } from 'lucide-react';
+import { BookOpen, Loader2, Plus } from 'lucide-react';
 
 import { Vocab } from '../types';
 import VocabItem from './VocabItem';
@@ -8,11 +8,14 @@ import VocabItem from './VocabItem';
 interface VocabListProps {
   vocabs: Vocab[];
   loading?: boolean;
-  onToggleMaster: (id: string) => void;
+  onToggleMaster: (id: string) => Promise<void>;
   onEdit: (vocab: Vocab) => void;
-  onDelete: (id: string) => void;
+  onDelete: (id: string) => Promise<void>;
   onCreate: () => void;
   onSpeak: (id: string) => Promise<void>;
+  hasMore?: boolean;
+  loadingMore?: boolean;
+  onLoadMore?: () => Promise<void>;
 }
 
 export default function VocabList({
@@ -23,6 +26,9 @@ export default function VocabList({
   onDelete,
   onCreate,
   onSpeak,
+  hasMore,
+  loadingMore,
+  onLoadMore,
 }: VocabListProps) {
   if (loading) {
     return (
@@ -77,6 +83,17 @@ export default function VocabList({
           onSpeak={onSpeak}
         />
       ))}
+      {hasMore && onLoadMore && (
+        <button
+          type="button"
+          onClick={() => void onLoadMore()}
+          disabled={loadingMore}
+          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-indigo-700 shadow-sm transition-colors hover:bg-indigo-50 disabled:cursor-wait disabled:opacity-60"
+        >
+          {loadingMore && <Loader2 className="h-4 w-4 animate-spin" />}
+          {loadingMore ? 'Loading more...' : 'Load more vocabulary'}
+        </button>
+      )}
     </div>
   );
 }

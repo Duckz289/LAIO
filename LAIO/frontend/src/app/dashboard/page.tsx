@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { ArrowRight, BarChart3, CalendarClock, CheckCircle2, Flame, Loader2, Target } from 'lucide-react';
+import { ArrowRight, BarChart3, BookOpen, CalendarClock, CheckCircle2, Flame, Loader2, Target } from 'lucide-react';
 
 import AppShell from '@/components/AppShell';
 import { useAuth } from '@/hooks/useAuth';
 import { api, ProgressSummary } from '@/lib/api';
 
 const metrics = [
+  { key: 'total_notebooks', label: 'Notebooks', icon: BookOpen },
   { key: 'total_vocabulary', label: 'Total words', icon: BarChart3 },
   { key: 'due_today', label: 'Due today', icon: CalendarClock },
   { key: 'accuracy_percentage', label: 'Accuracy', icon: Target },
@@ -20,11 +21,13 @@ export default function DashboardPage() {
   const [summary, setSummary] = useState<ProgressSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     if (authLoading || !user) return;
     const controller = new AbortController();
     setLoading(true);
+    setError(null);
     api.getProgressSummary({ signal: controller.signal })
       .then(setSummary)
       .catch((requestError) => {
@@ -36,7 +39,7 @@ export default function DashboardPage() {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [authLoading, user]);
+  }, [authLoading, reloadToken, user]);
 
   return (
     <AppShell title="Dashboard" userEmail={user?.email}>
@@ -55,14 +58,26 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {error && <div className="rounded-3xl border border-red-100 bg-red-50 p-4 text-sm font-semibold text-red-700" role="alert">{error}</div>}
+        {error && (
+          <div className="flex items-center justify-between gap-4 rounded-3xl border border-red-100 bg-red-50 p-4 text-sm font-semibold text-red-700" role="alert">
+            <span>{error}</span>
+            <button
+              type="button"
+              onClick={() => setReloadToken((current) => current + 1)}
+              disabled={loading}
+              className="shrink-0 rounded-xl bg-white px-3 py-2 text-xs font-black shadow-sm disabled:opacity-50"
+            >
+              Thử lại
+            </button>
+          </div>
+        )}
 
         {loading || authLoading ? (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, index) => <div key={index} className="h-36 animate-pulse rounded-3xl bg-white/70" />)}
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            {Array.from({ length: 5 }).map((_, index) => <div key={index} className="h-36 animate-pulse rounded-3xl bg-white/70" />)}
           </div>
         ) : (
-          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             {metrics.map((metric) => {
               const Icon = metric.icon;
               const rawValue = summary?.[metric.key] ?? 0;

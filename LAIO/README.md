@@ -52,14 +52,19 @@ server after changing `backend/.env`.
 
 ## Quality checks
 
+Install `pip-audit==2.10.1` in the backend development environment before the
+security check (CI installs it separately from runtime dependencies).
+
 ```powershell
 cd backend
 pytest
 alembic check
+python -m pip_audit -r requirements.txt
 
 cd ..\frontend
 npm run typecheck
 npm run build
+npm audit
 ```
 
 See `PRODUCT.md`, `ARCHITECTURE.md`, and `API_CONTRACT.md` before starting a
@@ -67,14 +72,23 @@ new milestone.
 
 ## Existing database migration
 
-The migration chain includes the schema that existed before Alembic. For an
-existing LAIO database, back it up, then mark the legacy schema before applying
-the learning-session migration:
+The migration head is `0004`. For a database created and managed entirely by
+Alembic, back it up and run:
 
 ```powershell
 cd backend
-alembic stamp 0001
 alembic upgrade head
 ```
 
-For a new empty database, run only `alembic upgrade head`.
+For a Supabase database created directly from the canonical schema-v2 SQL,
+do not replay `0001`–`0003`. Back it up, verify the schema matches v2, stamp
+`0003`, then apply `0004`. This is an owner-approved deployment operation:
+
+```powershell
+alembic stamp 0003
+alembic upgrade 0004
+```
+
+`START_LOCAL.cmd` validates required configuration and refuses to start when
+port 8001 belongs to another application, preventing the frontend from silently
+proxying credentials to the wrong local service.

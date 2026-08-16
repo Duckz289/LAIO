@@ -82,7 +82,11 @@ def get_vocab_item(db: Session, vocab_id: UUID, user_id: UUID) -> dict | None:
 
 
 def list_vocab_items(
-    db: Session, notebook_id: UUID, user_id: UUID
+    db: Session,
+    notebook_id: UUID,
+    user_id: UUID,
+    limit: int = 100,
+    offset: int = 0,
 ) -> tuple[list[dict], int] | None:
     if not verify_notebook_owner(db, notebook_id, user_id):
         return None
@@ -95,6 +99,8 @@ def list_vocab_items(
         )
         .where(VocabItem.notebook_id == notebook_id)
         .order_by(VocabItem.created_at.desc())
+        .limit(limit)
+        .offset(offset)
     )
     items = [_serialize_vocab(vocab, progress) for vocab, progress in db.execute(stmt)]
     total = db.scalar(
@@ -138,6 +144,8 @@ def search_vocab_items(
     notebook_id: UUID,
     user_id: UUID,
     keyword: str,
+    limit: int = 100,
+    offset: int = 0,
 ) -> tuple[list[dict], int] | None:
     if not verify_notebook_owner(db, notebook_id, user_id):
         return None
@@ -145,6 +153,13 @@ def search_vocab_items(
     if not normalized:
         return [], 0
     pattern = f"%{_escape_like(normalized)}%"
+    filters = (
+        VocabItem.notebook_id == notebook_id,
+        or_(
+            VocabItem.word.ilike(pattern, escape="\\"),
+            VocabItem.meaning.ilike(pattern, escape="\\"),
+        ),
+    )
     stmt = (
         select(VocabItem, VocabProgress)
         .outerjoin(
@@ -152,14 +167,13 @@ def search_vocab_items(
             (VocabProgress.vocab_item_id == VocabItem.id)
             & (VocabProgress.user_id == user_id),
         )
-        .where(
-            VocabItem.notebook_id == notebook_id,
-            or_(
-                VocabItem.word.ilike(pattern, escape="\\"),
-                VocabItem.meaning.ilike(pattern, escape="\\"),
-            ),
-        )
+        .where(*filters)
         .order_by(VocabItem.created_at.desc())
+        .limit(limit)
+        .offset(offset)
     )
     items = [_serialize_vocab(vocab, progress) for vocab, progress in db.execute(stmt)]
-    return items, len(items)
+    total = db.scalar(
+        select(func.count()).select_from(VocabItem).where(*filters)
+    ) or 0
+    return items, total

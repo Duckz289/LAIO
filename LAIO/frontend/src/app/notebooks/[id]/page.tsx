@@ -6,10 +6,9 @@ import { ArrowLeft, BookOpen, CalendarClock, Loader2, Plus, Sparkles, Zap } from
 
 import AppShell from '@/components/AppShell';
 import { useAuth } from '@/hooks/useAuth';
-import { api, ApiError, DueReviewItem, VocabRecord } from '@/lib/api';
+import { api, ApiError, DueReviewItem, LearningSession, VocabRecord } from '@/lib/api';
 
 import AddVocabModal from './components/AddVocabModal';
-import QuickActions from './components/QuickActions';
 import SearchBar from './components/SearchBar';
 import StatsCard from './components/StatsCard';
 import StudyMode from './components/StudyMode';
@@ -21,7 +20,8 @@ function todayKey() {
 }
 
 function isDue(vocab: Vocab) {
-  return !vocab.is_mastered && Boolean(vocab.next_review_date && vocab.next_review_date <= todayKey());
+  // Mastery is a user-facing label; the SRS schedule remains authoritative.
+  return Boolean(vocab.next_review_date && vocab.next_review_date <= todayKey());
 }
 
 function mapVocab(record: VocabRecord): Vocab {
@@ -60,6 +60,13 @@ function mapDueReview(item: DueReviewItem): Vocab {
     created_at: item.last_reviewed_at ?? item.next_review_date,
     updated_at: item.last_reviewed_at ?? item.next_review_date,
   };
+}
+
+function matchesSearch(vocab: Vocab, query: string) {
+  const normalized = query.trim().toLowerCase();
+  return !normalized
+    || vocab.word.toLowerCase().includes(normalized)
+    || vocab.meaning.toLowerCase().includes(normalized);
 }
 
 function describeError(error: unknown) {
@@ -121,6 +128,8 @@ export default function NotebookDetailPage() {
 
   const [notebook, setNotebook] = useState<Notebook | null>(null);
   const [vocabs, setVocabs] = useState<Vocab[]>([]);
+  const [vocabTotal, setVocabTotal] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [dueVocabs, setDueVocabs] = useState<Vocab[]>([]);
   const [loading, setLoading] = useState(true);
   const [vocabLoaded, setVocabLoaded] = useState(false);
@@ -129,6 +138,8 @@ export default function NotebookDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'notes' | 'study'>('notes');
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState<Vocab[] | null>(null);
+  const [searching, setSearching] = useState(false);
   const [activeFilter, setActiveFilter] = useState<VocabFilter>('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingVocab, setEditingVocab] = useState<Vocab | null>(null);
@@ -144,21 +155,11 @@ export default function NotebookDetailPage() {
 
   useEffect(() => {
     const next = new Map<string, Vocab>();
-    [...vocabs, ...dueVocabs].forEach((vocab) => next.set(vocab.id, vocab));
-    vocabById.current = next;
-  }, [dueVocabs, vocabs]);
-
-  const rebuildNotebookStats = useCallback((vocabList: Vocab[]) => {
-    setNotebook((previous) => {
-      if (!previous) return previous;
-      return {
-        ...previous,
-        totalVocabs: vocabList.length,
-        masteredVocabs: vocabList.filter((vocab) => vocab.is_mastered).length,
-        dueVocabs: vocabList.filter(isDue).length,
-      };
+    [...vocabs, ...dueVocabs, ...(searchResults ?? [])].forEach((vocab) => {
+      next.set(vocab.id, vocab);
     });
-  }, []);
+    vocabById.current = next;
+  }, [dueVocabs, searchResults, vocabs]);
 
   const fetchDueVocabs = useCallback(async (signal?: AbortSignal) => {
     const data = await api.getDueReviews(notebookId, { signal });
@@ -189,14 +190,14 @@ export default function NotebookDetailPage() {
         description: notebookResult.value.description || '',
         totalVocabs: notebookResult.value.vocab_count,
         masteredVocabs: notebookResult.value.mastered_count,
-        dueVocabs: dueList?.length ?? notebookResult.value.due_count,
+        dueVocabs: notebookResult.value.due_count,
       });
     } else if (vocabList) {
       setNotebook((previous) => previous ?? {
         id: notebookId,
         title: 'Notebook',
         description: '',
-        totalVocabs: vocabList.length,
+        totalVocabs: 'value' in vocabResult ? vocabResult.value.total : vocabList.length,
         masteredVocabs: vocabList.filter((vocab) => vocab.is_mastered).length,
         dueVocabs: dueList?.length ?? vocabList.filter(isDue).length,
       });
@@ -204,6 +205,9 @@ export default function NotebookDetailPage() {
 
     if (vocabList) {
       setVocabs(vocabList);
+      setVocabTotal(
+        'value' in vocabResult ? vocabResult.value.total : vocabList.length,
+      );
       setVocabLoaded(true);
     }
     if (dueList) {
@@ -224,17 +228,50 @@ export default function NotebookDetailPage() {
   }, [notebookId]);
 
   const refreshVocabData = useCallback(async () => {
-    const [vocabData, dueData] = await Promise.all([
+    const [notebookData, vocabData, dueData] = await Promise.all([
+      api.getNotebook(notebookId),
       api.getVocabs(notebookId),
       api.getDueReviews(notebookId),
     ]);
     const vocabList = vocabData.vocab_items.map(mapVocab);
     setVocabs(vocabList);
+    setVocabTotal(vocabData.total);
     setVocabLoaded(true);
     setDueVocabs(dueData.items.map(mapDueReview));
     setDueLoaded(true);
-    rebuildNotebookStats(vocabList);
-  }, [notebookId, rebuildNotebookStats]);
+    setNotebook({
+      id: notebookData.id,
+      title: notebookData.title,
+      description: notebookData.description || '',
+      totalVocabs: notebookData.vocab_count,
+      masteredVocabs: notebookData.mastered_count,
+      dueVocabs: notebookData.due_count,
+    });
+  }, [notebookId]);
+
+  const loadMoreVocabs = useCallback(async () => {
+    if (loadingMore || vocabs.length >= vocabTotal) return;
+    try {
+      setLoadingMore(true);
+      const data = await api.getVocabs(notebookId, {
+        limit: 100,
+        offset: vocabs.length,
+      });
+      const nextItems = data.vocab_items.map(mapVocab);
+      setVocabs((current) => {
+        const existingIds = new Set(current.map((item) => item.id));
+        return [
+          ...current,
+          ...nextItems.filter((item) => !existingIds.has(item.id)),
+        ];
+      });
+      setVocabTotal(data.total);
+    } catch (loadError) {
+      setError(`Không tải được trang từ vựng tiếp theo: ${describeError(loadError)}`);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, notebookId, vocabTotal, vocabs.length]);
 
   useEffect(() => {
     if (notebookId && !authLoading && user) {
@@ -243,6 +280,34 @@ export default function NotebookDetailPage() {
       return () => controller.abort();
     }
   }, [authLoading, loadNotebook, notebookId, reloadToken, user]);
+
+  useEffect(() => {
+    const normalized = searchTerm.trim();
+    if (!normalized) {
+      setSearchResults(null);
+      setSearching(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    setSearching(true);
+    const timer = window.setTimeout(() => {
+      api.searchVocabs(notebookId, normalized, { signal: controller.signal })
+        .then((data) => setSearchResults(data.vocab_items.map(mapVocab)))
+        .catch((searchError) => {
+          if (controller.signal.aborted) return;
+          setError(`Tìm kiếm thất bại: ${describeError(searchError)}`);
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setSearching(false);
+        });
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [notebookId, searchTerm]);
 
   useEffect(() => {
     return () => studyAbortRef.current?.abort();
@@ -282,14 +347,6 @@ export default function NotebookDetailPage() {
     }
   }, [fetchDueVocabs, learningSessionId, notebookId, studyStarting]);
 
-  const showNotes = useCallback(() => {
-    if (studyStarting) {
-      studyAbortRef.current?.abort();
-      setStudyStarting(false);
-    }
-    setActiveTab('notes');
-  }, [studyStarting]);
-
   useEffect(() => {
     if (autoStartChecked.current || loading || authLoading || !user || !notebookId) return;
     const requestedNotebook = window.sessionStorage.getItem('laio:auto-study-notebook');
@@ -301,19 +358,15 @@ export default function NotebookDetailPage() {
   }, [authLoading, loading, notebookId, startStudy, user]);
 
   const filteredVocabs = useMemo(() => {
-    const normalized = searchTerm.trim().toLowerCase();
-    return vocabs.filter((vocab) => {
-      const matchesSearch =
-        !normalized ||
-        vocab.word.toLowerCase().includes(normalized) ||
-        vocab.meaning.toLowerCase().includes(normalized);
+    const source = searchResults ?? vocabs;
+    return source.filter((vocab) => {
       const matchesFilter =
         activeFilter === 'all' ||
         (activeFilter === 'due' && isDue(vocab)) ||
         (activeFilter === 'mastered' && vocab.is_mastered);
-      return matchesSearch && matchesFilter;
+      return matchesFilter;
     });
-  }, [activeFilter, searchTerm, vocabs]);
+  }, [activeFilter, searchResults, vocabs]);
 
   const replaceDueVocab = useCallback((nextVocab: Vocab) => {
     setDueVocabs((current) => {
@@ -347,33 +400,6 @@ export default function NotebookDetailPage() {
     return request;
   }, []);
 
-  useEffect(() => {
-    const sourceVocabs = activeTab === 'study' ? dueVocabs : vocabs;
-    const warmupIds = sourceVocabs
-      .filter((vocab) => !vocab.audio_url && !audioRequests.current.has(vocab.id))
-      .slice(0, 4)
-      .map((vocab) => vocab.id);
-    if (warmupIds.length === 0) return;
-
-    let cancelled = false;
-    const warmAudio = async () => {
-      for (const id of warmupIds) {
-        if (cancelled) return;
-        try {
-          await getVocabAudioUrl(id);
-        } catch (warmupError) {
-          // A background warm-up must never interrupt normal vocabulary use.
-          console.warn('Could not warm vocabulary audio:', warmupError);
-        }
-      }
-    };
-    void warmAudio();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeTab, dueVocabs, getVocabAudioUrl, vocabs]);
-
   const speakVocab = useCallback(async (id: string) => {
 
     try {
@@ -399,6 +425,11 @@ export default function NotebookDetailPage() {
       });
       const nextVocab = mapVocab(created);
       setVocabs((current) => [nextVocab, ...current]);
+      setSearchResults((current) => {
+        if (!current || !matchesSearch(nextVocab, searchTerm)) return current;
+        return [nextVocab, ...current];
+      });
+      setVocabTotal((current) => current + 1);
       replaceDueVocab(nextVocab);
       setNotebook((previous) => previous ? {
         ...previous,
@@ -411,46 +442,70 @@ export default function NotebookDetailPage() {
       setError(`Thêm từ thất bại: ${describeError(createError)}`);
       throw createError;
     }
-  }, [notebookId, replaceDueVocab]);
+  }, [notebookId, replaceDueVocab, searchTerm]);
 
   const updateVocab = useCallback(async (id: string, data: Partial<VocabMutation>) => {
     try {
       const updated = await api.updateVocab(id, data);
       const nextVocab = mapVocab(updated);
-      setVocabs((current) => {
-        const next = current.map((item) => item.id === id ? nextVocab : item);
-        rebuildNotebookStats(next);
-        return next;
+      const previousVocab = vocabById.current.get(id);
+      setVocabs((current) => current.map((item) => item.id === id ? nextVocab : item));
+      setSearchResults((current) => {
+        if (!current) return current;
+        const withoutUpdated = current.filter((item) => item.id !== id);
+        return matchesSearch(nextVocab, searchTerm)
+          ? [nextVocab, ...withoutUpdated]
+          : withoutUpdated;
       });
+      if (previousVocab?.is_mastered !== nextVocab.is_mastered) {
+        setNotebook((previous) => previous ? {
+          ...previous,
+          masteredVocabs: Math.max(
+            0,
+            previous.masteredVocabs + (nextVocab.is_mastered ? 1 : -1),
+          ),
+        } : previous);
+      }
       replaceDueVocab(nextVocab);
     } catch (updateError) {
       console.warn('Failed to update vocab:', updateError);
       setError(`Cập nhật thất bại: ${describeError(updateError)}`);
       throw updateError;
     }
-  }, [rebuildNotebookStats, replaceDueVocab]);
+  }, [replaceDueVocab, searchTerm]);
 
   const deleteVocab = useCallback(async (id: string) => {
     if (!window.confirm('Xóa từ này?')) return;
+    const deletedVocab = vocabById.current.get(id);
     try {
       await api.deleteVocab(id);
-      setVocabs((current) => {
-        const next = current.filter((item) => item.id !== id);
-        rebuildNotebookStats(next);
-        return next;
-      });
+      setVocabs((current) => current.filter((item) => item.id !== id));
+      setSearchResults((current) => current?.filter((item) => item.id !== id) ?? null);
+      setVocabTotal((current) => Math.max(0, current - 1));
       setDueVocabs((current) => current.filter((item) => item.id !== id));
+      setNotebook((previous) => previous ? {
+        ...previous,
+        totalVocabs: Math.max(0, previous.totalVocabs - 1),
+        masteredVocabs: Math.max(
+          0,
+          previous.masteredVocabs - (deletedVocab?.is_mastered ? 1 : 0),
+        ),
+        dueVocabs: Math.max(
+          0,
+          previous.dueVocabs - (deletedVocab && isDue(deletedVocab) ? 1 : 0),
+        ),
+      } : previous);
     } catch (deleteError) {
       console.warn('Failed to delete vocab:', deleteError);
       setError(`Xóa thất bại: ${describeError(deleteError)}`);
     }
-  }, [rebuildNotebookStats]);
+  }, []);
 
   const toggleMaster = useCallback(async (id: string) => {
-    const vocab = vocabs.find((item) => item.id === id);
+    const vocab = vocabById.current.get(id);
     if (!vocab) return;
     await updateVocab(id, { is_mastered: !vocab.is_mastered });
-  }, [updateVocab, vocabs]);
+  }, [updateVocab]);
 
   const handleReview = useCallback(async (id: string, score: number, timeSpentMs: number) => {
     if (!learningSessionId) throw new Error('Learning session is not ready');
@@ -462,9 +517,9 @@ export default function NotebookDetailPage() {
     });
   }, [learningSessionId]);
 
-  const completeStudy = useCallback(async () => {
-    if (!learningSessionId) return;
-    await api.completeLearningSession(learningSessionId);
+  const completeStudy = useCallback(async (): Promise<LearningSession> => {
+    if (!learningSessionId) throw new Error('Learning session is not ready');
+    const completedSession = await api.completeLearningSession(learningSessionId);
     setLearningSessionId(null);
     try {
       await refreshVocabData();
@@ -472,11 +527,13 @@ export default function NotebookDetailPage() {
       console.warn('Study completed, but the vocabulary refresh failed:', refreshError);
       setError('Phiên học đã hoàn tất, nhưng danh sách chưa kịp cập nhật. Tải lại notebook để xem dữ liệu mới.');
     }
+    return completedSession;
   }, [learningSessionId, refreshVocabData]);
 
   const exitStudy = useCallback(async () => {
     studyAbortRef.current?.abort();
     const activeSessionId = learningSessionId;
+    setStudyStarting(false);
     setActiveTab('notes');
     setLearningSessionId(null);
     if (!activeSessionId) return;
@@ -546,7 +603,6 @@ export default function NotebookDetailPage() {
         <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
           <aside className="space-y-5">
             {notebook ? <StatsCard notebook={notebook} /> : <NotebookStatsSkeleton />}
-            <QuickActions />
             {notebook ? (
               <div className="rounded-3xl border border-white/70 bg-white/90 p-5 shadow-sm shadow-slate-200/60">
                 <p className="text-sm font-black text-slate-950">Mastery snapshot</p>
@@ -580,7 +636,7 @@ export default function NotebookDetailPage() {
                 type="button"
                 role="tab"
                 aria-selected={activeTab === 'notes'}
-                onClick={showNotes}
+                onClick={() => void exitStudy()}
                 className={`flex flex-1 items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-black transition-all ${activeTab === 'notes' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
               >
                 <BookOpen className="h-4 w-4" aria-hidden="true" />
@@ -641,12 +697,15 @@ export default function NotebookDetailPage() {
                 {vocabLoaded ? (
                 <VocabList
                   vocabs={filteredVocabs}
-                  loading={false}
+                  loading={searching}
                   onToggleMaster={toggleMaster}
                   onEdit={setEditingVocab}
                   onDelete={deleteVocab}
                   onCreate={() => setIsAddModalOpen(true)}
                   onSpeak={speakVocab}
+                  hasMore={!searchTerm.trim() && vocabs.length < vocabTotal}
+                  loadingMore={loadingMore}
+                  onLoadMore={loadMoreVocabs}
                 />
                 ) : null}
               </div>

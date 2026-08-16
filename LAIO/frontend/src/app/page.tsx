@@ -3,13 +3,21 @@
 // ============================================
 "use client";
 
-import React, { useState } from "react";
-import { CheckCircle2, Users, Gamepad2, Brain, ArrowRight } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { CheckCircle2, Users, Layers3, Brain, ArrowRight } from "lucide-react";
 import AuthModal from "@/components/auth/AuthModal";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function LandingPage() {
+  const router = useRouter();
+  const { user } = useAuth(false);
   // State quản lý việc ẩn/hiển thị bảng đăng nhập
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (user) router.replace("/dashboard");
+  }, [router, user]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 text-slate-900 font-sans antialiased">
@@ -93,7 +101,7 @@ export default function LandingPage() {
                 <span className="text-xs text-slate-500">theo tiến độ riêng</span>
               </div>
               <div className="bg-slate-100/60 border border-slate-200/50 rounded-xl p-3 flex flex-col gap-1">
-                <Gamepad2 className="w-5 h-5 text-amber-500" />
+                <Layers3 className="w-5 h-5 text-amber-500" />
                 <span className="font-bold text-sm text-slate-900">Flashcard</span>
                 <span className="text-xs text-slate-500">học chủ động</span>
               </div>
@@ -113,7 +121,7 @@ export default function LandingPage() {
                 <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Tiến độ học rõ ràng
               </div>
               <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Game luyện tập + SRS
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Ôn tập flashcard + SRS
               </div>
             </div>
           </div>
@@ -155,8 +163,8 @@ export default function LandingPage() {
                   <Brain className="w-4 h-4" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[11px] font-bold text-slate-900">SRS + roadmap</span>
-                  <span className="text-[9px] text-slate-500">không học rời rạc</span>
+                  <span className="text-[11px] font-bold text-slate-900">SRS + tiến độ</span>
+                  <span className="text-[9px] text-slate-500">lưu sau mỗi lượt ôn</span>
                 </div>
               </div>
             </div>
@@ -195,7 +203,7 @@ export default function LandingPage() {
       <section className="py-20 px-6 max-w-7xl mx-auto text-center flex flex-col gap-4">
         <span className="text-xs font-bold uppercase tracking-widest text-blue-600">Tính năng chính</span>
         <h2 className="text-3xl md:text-4xl font-extrabold text-slate-950 tracking-tight">
-          Tạo deck, học flashcard, luyện game, ôn SRS <br className="hidden md:inline" />
+          Tạo notebook, học flashcard, ôn SRS <br className="hidden md:inline" />
           — tất cả trong một
         </h2>
         <p className="text-slate-500 max-w-xl mx-auto text-sm md:text-base">

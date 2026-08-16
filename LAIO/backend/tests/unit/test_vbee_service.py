@@ -1,3 +1,5 @@
+import pytest
+
 from app.services import vbee_service
 
 
@@ -17,3 +19,13 @@ def test_maps_supported_audio_format_to_media_type(monkeypatch) -> None:
     monkeypatch.setattr(vbee_service.settings, "VBEE_AUDIO_TYPE", "wav")
 
     assert vbee_service._media_type() == "audio/wav"
+
+
+def test_rejects_lookalike_audio_host() -> None:
+    with pytest.raises(vbee_service.VbeeError):
+        vbee_service._audio_link(
+            {
+                "status": 1,
+                "result": {"audio_link": "https://notvbee.vn/file.mp3"},
+            }
+        )

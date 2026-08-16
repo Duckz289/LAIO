@@ -12,6 +12,11 @@ from app.core.models.vocab_progress import VocabProgress
 
 def get_progress_summary(db: Session, user_id: UUID) -> dict:
     current_date = db.scalar(select(func.current_date())) or date.today()
+    total_notebooks = db.scalar(
+        select(func.count())
+        .select_from(Notebook)
+        .where(Notebook.user_id == user_id, Notebook.is_archived.is_(False))
+    ) or 0
     total_vocabulary = db.scalar(
         select(func.count())
         .select_from(VocabItem)
@@ -46,6 +51,7 @@ def get_progress_summary(db: Session, user_id: UUID) -> dict:
             .where(ReviewHistory.user_id == user_id)
             .distinct()
             .order_by(func.date(ReviewHistory.reviewed_at).desc())
+            .limit(4_000)
         ).all()
     )
     streak = 0
@@ -57,6 +63,7 @@ def get_progress_summary(db: Session, user_id: UUID) -> dict:
         cursor -= timedelta(days=1)
 
     return {
+        "total_notebooks": total_notebooks,
         "total_vocabulary": total_vocabulary,
         "due_today": due_today,
         "reviews_completed": reviews_completed,

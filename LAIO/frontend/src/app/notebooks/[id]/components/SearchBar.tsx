@@ -31,6 +31,7 @@ export default function SearchBar({
           <input
             type="text"
             placeholder="Search vocabulary or meaning..."
+            maxLength={500}
             value={searchTerm}
             onChange={(event) => onSearchChange(event.target.value)}
             className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm font-semibold outline-none transition-all placeholder:text-slate-400 focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100"

@@ -4,18 +4,21 @@ Base URL: `/api/v1`
 
 All product endpoints require `Authorization: Bearer <Supabase access token>`.
 Errors use FastAPI's `{ "detail": ... }` shape.
+Collection requests are bounded. Notebook and vocabulary lists accept
+`limit` (1–200) and `offset` (>= 0), and return `total`, `limit`, and `offset`.
+Rate-limited requests return `429` with `Retry-After`.
 
 ## Vocabulary
 
 - `GET /notebooks/`
 - `POST /notebooks/`
 - `GET /notebooks/{notebook_id}`
-- `PUT /notebooks/{notebook_id}`
+- `PATCH /notebooks/{notebook_id}` (`PUT` remains deprecated compatibility)
 - `DELETE /notebooks/{notebook_id}`
 - `GET /vocab-items/notebook/{notebook_id}`
 - `POST /vocab-items/?notebook_id={notebook_id}`
 - `GET /vocab-items/{vocab_id}`
-- `PUT /vocab-items/{vocab_id}`
+- `PATCH /vocab-items/{vocab_id}` (`PUT` remains deprecated compatibility)
 - `DELETE /vocab-items/{vocab_id}`
 
 Notebook responses include the database-backed aggregate fields `vocab_count`,
@@ -79,6 +82,10 @@ user.
 
 - `GET /reviews/due?limit=20&notebook_id={optional_uuid}`
 - `GET /progress/summary`
+
+The progress summary returns `total_notebooks`, `total_vocabulary`,
+`due_today`, review counters, `accuracy_percentage`, and
+`current_streak_days`.
 
 The former standalone review submission API is not part of the public contract;
 answers are submitted through a learning session.

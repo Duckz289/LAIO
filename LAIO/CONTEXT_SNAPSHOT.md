@@ -1,5 +1,8 @@
 # CONTEXT_SNAPSHOT.md
 
+> Historical snapshot from 2026-06-24. It is superseded by current code,
+> `API_CONTRACT.md`, `PRODUCT.md`, and `TECH_DEBT.md` as of 2026-08-16.
+
 Ban chup hien trang LAIO ngay 2026-06-24, dua tren doc code that trong workspace hien tai. File nay uu tien code hon `CLAUDE.md`/`TECH_DEBT.md` neu co lech.
 
 ## 1. Luong end-to-end that su co code

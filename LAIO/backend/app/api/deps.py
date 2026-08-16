@@ -14,6 +14,11 @@ security = HTTPBearer(auto_error=False)
 
 async def verify_supabase_token(token: str) -> dict:
     """Verify JWT token with Supabase Auth."""
+    if not token or len(token) > 8_192:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication token",
+        )
     if settings.SUPABASE_JWT_SECRET:
         try:
             return jwt.decode(
@@ -21,6 +26,12 @@ async def verify_supabase_token(token: str) -> dict:
                 settings.SUPABASE_JWT_SECRET,
                 algorithms=["HS256"],
                 audience="authenticated",
+                issuer=(
+                    f"{settings.SUPABASE_URL.rstrip('/')}/auth/v1"
+                    if settings.SUPABASE_URL
+                    else None
+                ),
+                options={"require": ["exp", "sub"]},
             )
         except jwt.PyJWTError as exc:
             raise HTTPException(
@@ -34,20 +45,30 @@ async def verify_supabase_token(token: str) -> dict:
             detail="Authentication is not configured",
         )
 
-    async with httpx.AsyncClient(timeout=5.0) as client:
-        response = await client.get(
-            f"{settings.SUPABASE_URL}/auth/v1/user",
-            headers={
-                "Authorization": f"Bearer {token}",
-                "apikey": settings.SUPABASE_PUBLISHABLE_KEY,
-            },
-        )
-        if response.status_code != 200:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid authentication token",
+    try:
+        async with httpx.AsyncClient(
+            timeout=5.0,
+            limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
+        ) as client:
+            response = await client.get(
+                f"{settings.SUPABASE_URL.rstrip('/')}/auth/v1/user",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "apikey": settings.SUPABASE_PUBLISHABLE_KEY,
+                },
             )
-        return response.json()
+    except (httpx.TimeoutException, httpx.RequestError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication service is temporarily unavailable",
+        ) from exc
+
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication token",
+        )
+    return response.json()
 
 
 async def get_current_user(

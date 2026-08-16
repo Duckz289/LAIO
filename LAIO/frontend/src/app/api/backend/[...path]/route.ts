@@ -1,6 +1,15 @@
 const backendUrl = process.env.BACKEND_INTERNAL_URL ?? "http://127.0.0.1:8001";
 
 const bodylessMethods = new Set(["GET", "HEAD"]);
+const maxRequestBodyBytes = 1_048_576;
+const forwardedResponseHeaders = new Set([
+  "cache-control",
+  "content-disposition",
+  "content-type",
+  "retry-after",
+  "x-ratelimit-limit",
+  "x-ratelimit-remaining",
+]);
 
 async function proxyRequest(
   request: Request,
@@ -19,6 +28,11 @@ async function proxyRequest(
   );
   target.search = new URL(request.url).search;
 
+  const rawContentLength = request.headers.get("content-length");
+  if (rawContentLength && Number(rawContentLength) > maxRequestBodyBytes) {
+    return Response.json({ detail: "Request body is too large" }, { status: 413 });
+  }
+
   // Forward only application headers. Hop-by-hop headers from the browser
   // request (connection, transfer-encoding, content-length, etc.) can make
   // the server-side fetch fail when the request has a body.
@@ -30,6 +44,9 @@ async function proxyRequest(
   const body = bodylessMethods.has(request.method)
     ? undefined
     : await request.text();
+  if (body && new TextEncoder().encode(body).byteLength > maxRequestBodyBytes) {
+    return Response.json({ detail: "Request body is too large" }, { status: 413 });
+  }
 
   try {
     let response = await fetch(target, {
@@ -45,7 +62,15 @@ async function proxyRequest(
       const location = response.headers.get("location");
       if (!location) break;
 
-      response = await fetch(new URL(location, target), {
+      const redirectTarget = new URL(location, target);
+      if (redirectTarget.origin !== target.origin) {
+        return Response.json(
+          { detail: "Backend returned an unsafe redirect" },
+          { status: 502 },
+        );
+      }
+
+      response = await fetch(redirectTarget, {
         method: request.method,
         headers,
         body,
@@ -55,7 +80,7 @@ async function proxyRequest(
 
     const responseHeaders = new Headers();
     response.headers.forEach((value, key) => {
-      if (key !== "content-encoding" && key !== "content-length") {
+      if (forwardedResponseHeaders.has(key.toLowerCase())) {
         responseHeaders.set(key, value);
       }
     });
@@ -67,14 +92,7 @@ async function proxyRequest(
   } catch (error) {
     console.error("Backend proxy failed:", error);
     return Response.json(
-      {
-        detail:
-          process.env.NODE_ENV === "production"
-            ? "Backend is unavailable. Start the FastAPI server and try again."
-            : error instanceof Error
-              ? error.message
-              : String(error),
-      },
+      { detail: "Backend is unavailable. Start the FastAPI server and try again." },
       { status: 502 },
     );
   }

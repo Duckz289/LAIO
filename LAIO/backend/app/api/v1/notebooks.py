@@ -1,5 +1,5 @@
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.api.deps import get_current_user
@@ -15,9 +15,22 @@ def create_notebook(data: NotebookCreate, db: Session = Depends(get_db), user_id
 
 
 @router.get("/", response_model=NotebookListResponse)
-def list_notebooks(include_archived: bool = False, db: Session = Depends(get_db), user_id: UUID = Depends(get_current_user)):
-    notebooks, total = notebook_service.list_notebooks(db, user_id, include_archived)
-    return NotebookListResponse(notebooks=notebooks, total=total)
+def list_notebooks(
+    include_archived: bool = False,
+    limit: int = Query(default=100, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+    user_id: UUID = Depends(get_current_user),
+):
+    notebooks, total = notebook_service.list_notebooks(
+        db, user_id, include_archived, limit, offset
+    )
+    return NotebookListResponse(
+        notebooks=notebooks,
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.get("/{notebook_id}", response_model=NotebookResponse)
@@ -28,7 +41,8 @@ def get_notebook(notebook_id: UUID, db: Session = Depends(get_db), user_id: UUID
     return notebook
 
 
-@router.put("/{notebook_id}", response_model=NotebookResponse)
+@router.put("/{notebook_id}", response_model=NotebookResponse, deprecated=True)
+@router.patch("/{notebook_id}", response_model=NotebookResponse)
 def update_notebook(notebook_id: UUID, data: NotebookUpdate, db: Session = Depends(get_db), user_id: UUID = Depends(get_current_user)):
     notebook = notebook_service.update_notebook(db, notebook_id, user_id, data)
     if not notebook:

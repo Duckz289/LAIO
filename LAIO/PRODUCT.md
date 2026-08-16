@@ -10,10 +10,11 @@ product loop is:
 
 ## Current milestone
 
-Build a reliable vocabulary-learning vertical slice. Vocabulary, scheduling,
-learning sessions, and progress analytics must use real user data. Empty
-screens, loading states, authentication failures, and API failures are part of
-the acceptance criteria.
+The basic vocabulary demo vertical slice is implemented. Its acceptance flow is:
+register/sign in → create a notebook → add/edit/search vocabulary → review due
+flashcards → see updated due counts and accuracy → sign out. Vocabulary,
+scheduling, sessions, and analytics use real user-scoped data; loading, empty,
+retry, validation, and authentication failure states are part of the slice.
 
 ## Non-goals for this milestone
 

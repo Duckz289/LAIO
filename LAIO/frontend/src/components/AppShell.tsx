@@ -4,12 +4,10 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   BookOpen,
-  Gamepad2,
   GraduationCap,
   Home,
   LogOut,
   Menu,
-  Settings,
   X,
 } from "lucide-react";
 import { memo, useEffect, useState } from "react";
@@ -26,8 +24,6 @@ const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: Home },
   { label: "Notebooks", href: "/notebooks", icon: BookOpen },
   { label: "Review", href: "/review", icon: GraduationCap },
-  { label: "Games", href: "/games", icon: Gamepad2 },
-  { label: "Settings", href: "/debug", icon: Settings },
 ];
 
 interface SidebarContentProps {
@@ -35,6 +31,8 @@ interface SidebarContentProps {
   userEmail?: string | null;
   onNavigate: () => void;
   onLogout: () => void;
+  loggingOut: boolean;
+  logoutError: string | null;
 }
 
 const SidebarContent = memo(function SidebarContent({
@@ -42,6 +40,8 @@ const SidebarContent = memo(function SidebarContent({
   userEmail,
   onNavigate,
   onLogout,
+  loggingOut,
+  logoutError,
 }: SidebarContentProps) {
   return (
     <div className="flex h-full flex-col">
@@ -92,11 +92,17 @@ const SidebarContent = memo(function SidebarContent({
         <button
           type="button"
           onClick={onLogout}
+          disabled={loggingOut}
           className="flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600 active:scale-[0.99]"
         >
           <LogOut className="h-4 w-4" aria-hidden="true" />
-          Đăng xuất
+          {loggingOut ? "Đang đăng xuất..." : "Đăng xuất"}
         </button>
+        {logoutError && (
+          <p className="mt-2 text-xs font-semibold text-red-600" role="alert">
+            {logoutError}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -106,6 +112,8 @@ export default function AppShell({ children, title = "LAIO", userEmail }: AppShe
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState<string | null>(null);
 
   useEffect(() => {
     setMobileOpen(false);
@@ -123,10 +131,23 @@ export default function AppShell({ children, title = "LAIO", userEmail }: AppShe
   }, [mobileOpen]);
 
   const handleLogout = async () => {
-    if (isSupabaseConfigured) {
-      await supabase.auth.signOut();
+    if (loggingOut) return;
+    setLoggingOut(true);
+    setLogoutError(null);
+    try {
+      if (isSupabaseConfigured) {
+        const { error } = await supabase.auth.signOut({ scope: "local" });
+        if (error) throw error;
+      }
+      router.replace("/");
+      router.refresh();
+    } catch (error) {
+      setLogoutError(
+        error instanceof Error ? error.message : "Không thể đăng xuất. Vui lòng thử lại.",
+      );
+    } finally {
+      setLoggingOut(false);
     }
-    router.replace("/");
   };
 
   return (
@@ -137,6 +158,8 @@ export default function AppShell({ children, title = "LAIO", userEmail }: AppShe
           userEmail={userEmail}
           onNavigate={() => undefined}
           onLogout={() => void handleLogout()}
+          loggingOut={loggingOut}
+          logoutError={logoutError}
         />
       </aside>
 
@@ -178,6 +201,8 @@ export default function AppShell({ children, title = "LAIO", userEmail }: AppShe
               userEmail={userEmail}
               onNavigate={() => setMobileOpen(false)}
               onLogout={() => void handleLogout()}
+              loggingOut={loggingOut}
+              logoutError={logoutError}
             />
           </aside>
         </div>

@@ -97,6 +97,7 @@ export default function AddVocabModal({ isOpen, onClose, onAdd, editingVocab }: 
       <button
         className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm"
         onClick={onClose}
+        disabled={submitting}
         aria-label="Close vocabulary modal"
       />
 
@@ -104,6 +105,7 @@ export default function AddVocabModal({ isOpen, onClose, onAdd, editingVocab }: 
         <button
           type="button"
           onClick={onClose}
+          disabled={submitting}
           className="absolute right-5 top-5 rounded-2xl bg-slate-100 p-2 text-slate-500 transition-all hover:bg-slate-200 hover:text-slate-800"
           aria-label="Close modal"
         >
@@ -139,6 +141,7 @@ export default function AddVocabModal({ isOpen, onClose, onAdd, editingVocab }: 
                 className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold outline-none transition-all focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100"
                 placeholder="abandon"
                 required
+                maxLength={500}
               />
             </div>
             <button
@@ -160,6 +163,7 @@ export default function AddVocabModal({ isOpen, onClose, onAdd, editingVocab }: 
               className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold outline-none transition-all focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100"
               placeholder="bỏ rơi, từ bỏ"
               required
+              maxLength={10000}
             />
           </div>
 
@@ -172,6 +176,7 @@ export default function AddVocabModal({ isOpen, onClose, onAdd, editingVocab }: 
                 onChange={(event) => setForm({ ...form, pronunciation: event.target.value })}
                 className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold outline-none transition-all focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100"
                 placeholder="/əˈbændən/"
+                maxLength={500}
               />
             </div>
             <div>
@@ -198,6 +203,7 @@ export default function AddVocabModal({ isOpen, onClose, onAdd, editingVocab }: 
               rows={3}
               className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold outline-none transition-all focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100"
               placeholder="He abandoned the plan after the test failed."
+              maxLength={10000}
             />
           </div>
 
@@ -215,6 +221,7 @@ export default function AddVocabModal({ isOpen, onClose, onAdd, editingVocab }: 
             <button
               type="button"
               onClick={onClose}
+              disabled={submitting}
               className="flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 transition-all hover:bg-slate-50"
             >
               Cancel

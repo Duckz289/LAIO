@@ -2,6 +2,7 @@ from pydantic import BaseModel
 
 
 class ProgressSummaryResponse(BaseModel):
+    total_notebooks: int
     total_vocabulary: int
     due_today: int
     reviews_completed: int

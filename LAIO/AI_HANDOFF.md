@@ -162,7 +162,8 @@ mismatch vừa sửa.
   `alembic_version` và còn hai cột legacy dư:
   `learning_sessions.accuracy_percentage`, `game_sessions.created_at`.
 - Code hiện tại không đọc/ghi hai cột dư đó. **Không replay `0001/0002` lên
-  database live.** Chỉ stamp/migrate database live khi người sở hữu database
+  database live. Revision `0004` thêm unique partial index để mỗi user chỉ có
+  một learning session active. **Chỉ stamp/migrate database live khi người sở hữu database
   đồng ý rõ ràng và đã backup.
 
 ## Prompt mẫu để gửi AI khác

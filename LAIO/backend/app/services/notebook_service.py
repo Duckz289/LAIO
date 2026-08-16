@@ -91,7 +91,11 @@ def get_notebook_response(
 
 
 def list_notebooks(
-    db: Session, user_id: UUID, include_archived: bool = False
+    db: Session,
+    user_id: UUID,
+    include_archived: bool = False,
+    limit: int = 100,
+    offset: int = 0,
 ) -> tuple[list[dict], int]:
     stmt = _response_statement(user_id).where(Notebook.user_id == user_id)
     count_stmt = (
@@ -101,7 +105,9 @@ def list_notebooks(
         stmt = stmt.where(Notebook.is_archived.is_(False))
         count_stmt = count_stmt.where(Notebook.is_archived.is_(False))
 
-    rows = db.execute(stmt.order_by(Notebook.created_at.desc())).all()
+    rows = db.execute(
+        stmt.order_by(Notebook.created_at.desc()).limit(limit).offset(offset)
+    ).all()
     return [_serialize_notebook(row) for row in rows], db.scalar(count_stmt) or 0
 
 

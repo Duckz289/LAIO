@@ -1,6 +1,6 @@
 # CLAUDE.md - LAIO AI Handoff
 
-Doc file nay dau tien khi mo phien Claude/Codex moi trong repo LAIO. Day la handoff ngan, dua tren doc code that tai workspace hien tai ngay 2026-06-24. Neu can chi tiet hon, doc `CONTEXT_SNAPSHOT.md`.
+Doc file nay dau tien khi mo phien Claude/Codex moi trong repo LAIO. Hien trang duoc cap nhat ngay 2026-08-16. `CONTEXT_SNAPSHOT.md` la lich su cu, khong phai contract hien tai.
 
 ## Source of truth
 
@@ -38,15 +38,16 @@ Khong tu tao route/model/co che moi ngoai milestone spec. Neu thay docs lech cod
 - `GET /progress/summary` ton tai o `backend/app/api/v1/progress.py:14`, service tinh counters o `backend/app/services/analytics_service.py:13`.
 - Frontend API client canonical la `frontend/src/lib/api.ts`. Pages dung `api.*`, vi du notebooks page import o `frontend/src/app/notebooks/page.tsx:5`, detail page import o `frontend/src/app/notebooks/[id]/page.tsx:20`.
 - `useAuth` hoat dong va redirect khi thieu session: `frontend/src/hooks/useAuth.ts:9` den `frontend/src/hooks/useAuth.ts:37`.
-- `/dashboard`, `/games`, `/review` redirect ve `/notebooks`, khong con la file rong: xem `frontend/src/app/dashboard/page.tsx:1`, `frontend/src/app/games/page.tsx:1`, `frontend/src/app/review/page.tsx:1`.
-- Frontend build da chay that ngay 2026-06-24 bang `npm run build` trong `frontend/` va pass.
+- `/dashboard`, `/notebooks`, `/notebooks/[id]`, va `/review` la cac page MVP that. Games/debug khong nam trong navigation MVP.
+- API co bounded pagination, rate/body limits, security headers; migration head la `0004`.
+- API client chi export domain methods; component khong duoc goi low-level helper.
 
 ## Contract dang dung
 
 Doc `API_CONTRACT.md` truoc khi sua bat ky API nao. Tom tat route dang dung:
 
-- Notebooks: `GET/POST /notebooks/`, `GET/PUT/DELETE /notebooks/{id}`.
-- Vocab: `POST /vocab-items/?notebook_id=...`, `GET /vocab-items/notebook/{notebook_id}`, `GET/PUT/DELETE /vocab-items/{id}`, `GET /vocab-items/notebook/{notebook_id}/search?q=...`.
+- Notebooks: `GET/POST /notebooks/`, `GET/PATCH/DELETE /notebooks/{id}` (`PUT` deprecated).
+- Vocab: `POST /vocab-items/?notebook_id=...`, `GET /vocab-items/notebook/{notebook_id}`, `GET/PATCH/DELETE /vocab-items/{id}`, `GET /vocab-items/notebook/{notebook_id}/search?q=...` (`PUT` deprecated).
 - Reviews: `GET /reviews/due?limit=20&notebook_id=...`.
 - Learning: `POST /learning-sessions`, `POST /learning-sessions/{session_id}/answers`, `POST /learning-sessions/{session_id}/complete`, `POST /learning-sessions/{session_id}/abandon`.
 - Analytics: `GET /progress/summary`.
@@ -62,7 +63,7 @@ Repo hien tai dang o branch `Minh_Phat`. Da fetch `origin` ngay 2026-06-24; remo
 - Backend them learning/progress vertical slice: `backend/app/api/v1/learning_sessions.py`, `backend/app/api/v1/progress.py`, `backend/app/core/models/learning_session.py`, `backend/app/schemas/learning.py`, `backend/app/schemas/progress.py`, `backend/app/services/learning_service.py`, `backend/app/services/analytics_service.py`.
 - Backend sua config/auth/db/router/review/vocab/game services: `backend/app/core/config.py`, `backend/app/api/deps.py`, `backend/app/api/v1/router.py`, `backend/app/services/review_service.py`, `backend/app/services/vocab_service.py`, `backend/requirements.txt`.
 - Frontend sua API client typed + auth guard + learning flow: `frontend/src/lib/api.ts`, `frontend/src/hooks/useAuth.ts`, `frontend/src/app/notebooks/page.tsx`, `frontend/src/app/notebooks/[id]/page.tsx`, `frontend/src/app/notebooks/[id]/components/StudyMode.tsx`, `frontend/src/app/notebooks/[id]/components/AddVocabModal.tsx`.
-- Frontend sua `/dashboard`, `/games`, `/review` thanh redirect ve `/notebooks`.
+- Frontend co dashboard/review MVP that; game con ngoai pham vi va khong nam trong core navigation.
 
 Neu user noi "so voi GitHub", dung danh sach tren lam canh bao: dung gia dinh GitHub/main da co cac file nay tru khi da fetch/pull va xac nhan.
 

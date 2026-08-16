@@ -18,7 +18,7 @@ def get_due_reviews(
     user_id: UUID = Depends(get_current_user),
 ):
     """Get vocab items due for review today."""
-    items = review_service.get_due_reviews(
+    items, total = review_service.get_due_reviews(
         db, user_id, limit, notebook_id=notebook_id
     )
-    return DueReviewsResponse(items=items, total=len(items))
+    return DueReviewsResponse(items=items, total=total)

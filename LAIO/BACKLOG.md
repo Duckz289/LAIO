@@ -1,11 +1,12 @@
 # LAIO Backlog
 
-## Now — foundation and vocabulary vertical slice
+## Completed — basic vocabulary demo
 
-- Stable local setup, migrations, CI, and typed API client
-- Authenticated notebook and vocabulary ownership
-- Learning sessions, answer history, SRS snapshots, and progress summary
-- Production build and critical unit/integration tests
+- Stable local setup checks, migrations, bounded API client, dependency audits
+- Register/login/logout and authenticated notebook/vocabulary ownership
+- Notebook and vocabulary CRUD, server search/filter, paged vocabulary loading
+- Learning sessions, answer history, SRS snapshots, completion accuracy
+- Dashboard notebook/word/due metrics and critical regression tests
 
 ## Next — personalization
 
@@ -26,7 +27,7 @@
 ## Security and scale gates
 
 - Cached JWKS verification for projects using asymmetric Supabase signing keys
-- Endpoint rate limiting and audit events
-- Pagination and query-performance budgets
+- Distributed rate limiting and durable audit events (in-process limits exist)
+- Cursor pagination and measured query-performance budgets (bounded offset pagination exists)
 - Error tracking, service metrics, and tested backup restoration
 - Extract a service only after measured scaling or release-boundary evidence

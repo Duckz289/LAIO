@@ -13,10 +13,13 @@ export default function ReviewPage() {
   const [items, setItems] = useState<DueReviewItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     if (authLoading || !user) return;
     const controller = new AbortController();
+    setLoading(true);
+    setError(null);
     api.getDueReviews(undefined, { signal: controller.signal })
       .then((response) => setItems(response.items))
       .catch((requestError) => {
@@ -28,7 +31,7 @@ export default function ReviewPage() {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [authLoading, user]);
+  }, [authLoading, reloadToken, user]);
 
   const openNotebookReview = (notebookId: string) => {
     window.sessionStorage.setItem('laio:auto-study-notebook', notebookId);
@@ -47,7 +50,19 @@ export default function ReviewPage() {
           </div>
         </section>
 
-        {error && <div className="rounded-3xl border border-red-100 bg-red-50 p-4 text-sm font-semibold text-red-700" role="alert">{error}</div>}
+        {error && (
+          <div className="flex items-center justify-between gap-4 rounded-3xl border border-red-100 bg-red-50 p-4 text-sm font-semibold text-red-700" role="alert">
+            <span>{error}</span>
+            <button
+              type="button"
+              onClick={() => setReloadToken((current) => current + 1)}
+              disabled={loading}
+              className="shrink-0 rounded-xl bg-white px-3 py-2 text-xs font-black shadow-sm disabled:opacity-50"
+            >
+              Thử lại
+            </button>
+          </div>
+        )}
 
         {loading || authLoading ? (
           <div className="space-y-3">{Array.from({ length: 4 }).map((_, index) => <div key={index} className="h-20 animate-pulse rounded-3xl bg-white/70" />)}</div>

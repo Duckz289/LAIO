@@ -16,24 +16,25 @@ def get_due_reviews(
     user_id: UUID,
     limit: int = 20,
     notebook_id: UUID | None = None,
-) -> list[dict]:
+) -> tuple[list[dict], int]:
+    filters = [
+        Notebook.user_id == user_id,
+        VocabProgress.user_id == user_id,
+        VocabProgress.next_review_date <= func.current_date(),
+        Notebook.is_archived.is_(False),
+    ]
+    if notebook_id:
+        filters.append(Notebook.id == notebook_id)
+
     stmt = (
         select(VocabItem, VocabProgress)
         .join(VocabProgress, VocabProgress.vocab_item_id == VocabItem.id)
         .join(Notebook, Notebook.id == VocabItem.notebook_id)
-        .where(
-            Notebook.user_id == user_id,
-            VocabProgress.user_id == user_id,
-            VocabProgress.next_review_date <= func.current_date(),
-            Notebook.is_archived.is_(False),
-        )
+        .where(*filters)
         .order_by(VocabProgress.next_review_date.asc(), VocabItem.created_at.asc())
         .limit(limit)
     )
-    if notebook_id:
-        stmt = stmt.where(Notebook.id == notebook_id)
-
-    return [
+    items = [
         {
             "vocab_item_id": vocab.id,
             "notebook_id": vocab.notebook_id,
@@ -51,6 +52,14 @@ def get_due_reviews(
         }
         for vocab, progress in db.execute(stmt).all()
     ]
+    total = db.scalar(
+        select(func.count())
+        .select_from(VocabProgress)
+        .join(VocabItem, VocabItem.id == VocabProgress.vocab_item_id)
+        .join(Notebook, Notebook.id == VocabItem.notebook_id)
+        .where(*filters)
+    ) or 0
+    return items, total
 
 
 def apply_review(

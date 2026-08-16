@@ -78,6 +78,7 @@ export interface DueReviewItem {
 }
 
 export interface ProgressSummary {
+  total_notebooks: number;
   total_vocabulary: number;
   due_today: number;
   reviews_completed: number;
@@ -121,7 +122,7 @@ async function getHeaders(forceRefresh = false): Promise<Headers> {
   }
 
   const { data, error } = forceRefresh
-    ? await supabase.auth.refreshSession()
+    ? await refreshSessionOnce()
     : await supabase.auth.getSession();
   if (error) throw new ApiError(401, error.message);
   if (!data.session?.access_token) {
@@ -133,12 +134,27 @@ async function getHeaders(forceRefresh = false): Promise<Headers> {
   return headers;
 }
 
+let refreshPromise: ReturnType<typeof supabase.auth.refreshSession> | null = null;
+
+function refreshSessionOnce() {
+  if (!refreshPromise) {
+    refreshPromise = supabase.auth.refreshSession().finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
+}
+
 async function request<T>(path: string, init: RequestInit): Promise<T> {
   const send = async (forceRefresh = false) => {
     const headers = new Headers(init.headers);
     const authHeaders = await getHeaders(forceRefresh);
     authHeaders.forEach((value, key) => headers.set(key, value));
-    return fetch(`${BASE_URL}${path}`, { ...init, headers });
+    return fetch(`${BASE_URL}${path}`, {
+      ...init,
+      headers,
+      cache: "no-store",
+    });
   };
 
   let response: Response;
@@ -182,11 +198,11 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export function get<T>(path: string, options?: Pick<RequestInit, "signal">): Promise<T> {
+function get<T>(path: string, options?: Pick<RequestInit, "signal">): Promise<T> {
   return request<T>(path, { method: "GET", ...options });
 }
 
-export function post<T>(
+function post<T>(
   path: string,
   body?: unknown,
   options?: Pick<RequestInit, "signal">,
@@ -198,19 +214,7 @@ export function post<T>(
   });
 }
 
-export function put<T>(
-  path: string,
-  body?: unknown,
-  options?: Pick<RequestInit, "signal">,
-): Promise<T> {
-  return request<T>(path, {
-    method: "PUT",
-    body: body === undefined ? undefined : JSON.stringify(body),
-    ...options,
-  });
-}
-
-export function patch<T>(
+function patch<T>(
   path: string,
   body?: unknown,
   options?: Pick<RequestInit, "signal">,
@@ -222,14 +226,18 @@ export function patch<T>(
   });
 }
 
-export function del<T>(path: string, options?: Pick<RequestInit, "signal">): Promise<T> {
+function del<T>(path: string, options?: Pick<RequestInit, "signal">): Promise<T> {
   return request<T>(path, { method: "DELETE", ...options });
 }
 
 async function postAudio(path: string): Promise<string> {
   const send = async (forceRefresh = false) => {
     const headers = await getHeaders(forceRefresh);
-    return fetch(`${BASE_URL}${path}`, { method: "POST", headers });
+    return fetch(`${BASE_URL}${path}`, {
+      method: "POST",
+      headers,
+      cache: "no-store",
+    });
   };
 
   let response: Response;
@@ -261,30 +269,58 @@ async function postAudio(path: string): Promise<string> {
 }
 
 export const api = {
-  get,
-  post,
-  put,
-  patch,
-  delete: del,
   getNotebooks: (options?: Pick<RequestInit, "signal">) =>
-    get<{ notebooks: NotebookRecord[]; total: number }>("/notebooks", options),
+    get<{
+      notebooks: NotebookRecord[];
+      total: number;
+      limit: number;
+      offset: number;
+    }>("/notebooks?limit=200", options),
   getNotebook: (id: string, options?: Pick<RequestInit, "signal">) =>
     get<NotebookRecord>(`/notebooks/${id}`, options),
   createNotebook: (body: { title: string; description?: string }) =>
     post<NotebookRecord>("/notebooks", body),
   deleteNotebook: (id: string, options?: Pick<RequestInit, "signal">) =>
     del<void>(`/notebooks/${id}`, options),
-  getVocabs: (notebookId: string, options?: Pick<RequestInit, "signal">) =>
-    get<{ vocab_items: VocabRecord[]; total: number }>(
-      `/vocab-items/notebook/${notebookId}`,
+  getVocabs: (
+    notebookId: string,
+    options?: Pick<RequestInit, "signal"> & { limit?: number; offset?: number },
+  ) => {
+    const limit = Math.min(200, Math.max(1, options?.limit ?? 100));
+    const offset = Math.max(0, options?.offset ?? 0);
+    return get<{
+      vocab_items: VocabRecord[];
+      total: number;
+      limit: number;
+      offset: number;
+    }>(
+      `/vocab-items/notebook/${encodeURIComponent(notebookId)}?limit=${limit}&offset=${offset}`,
+      { signal: options?.signal },
+    );
+  },
+  searchVocabs: (
+    notebookId: string,
+    query: string,
+    options?: Pick<RequestInit, "signal">,
+  ) =>
+    get<{
+      vocab_items: VocabRecord[];
+      total: number;
+      limit: number;
+      offset: number;
+    }>(
+      `/vocab-items/notebook/${encodeURIComponent(notebookId)}/search?q=${encodeURIComponent(query)}&limit=200`,
       options,
     ),
   createVocab: (
     notebookId: string,
     body: Required<Pick<VocabWriteInput, "word" | "meaning">> & VocabWriteInput,
-  ) => post<VocabRecord>(`/vocab-items/?notebook_id=${notebookId}`, body),
+  ) => post<VocabRecord>(
+    `/vocab-items/?notebook_id=${encodeURIComponent(notebookId)}`,
+    body,
+  ),
   updateVocab: (id: string, body: VocabWriteInput, options?: Pick<RequestInit, "signal">) =>
-    put<VocabRecord>(`/vocab-items/${id}`, body, options),
+    patch<VocabRecord>(`/vocab-items/${encodeURIComponent(id)}`, body, options),
   deleteVocab: (id: string, options?: Pick<RequestInit, "signal">) =>
     del<void>(`/vocab-items/${id}`, options),
   generateVocabAudio: (id: string) => postAudio(`/vocab-items/${id}/audio`),

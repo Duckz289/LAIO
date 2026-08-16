@@ -73,7 +73,10 @@ def _audio_link(payload: Any) -> str:
         raise VbeeError("Vbee returned no audio link")
 
     parsed = urlparse(link)
-    if parsed.scheme != "https" or not parsed.hostname or not parsed.hostname.endswith("vbee.vn"):
+    hostname = (parsed.hostname or "").lower()
+    if parsed.scheme != "https" or not (
+        hostname == "vbee.vn" or hostname.endswith(".vbee.vn")
+    ):
         raise VbeeError("Vbee returned an invalid audio link")
     return link
 
@@ -102,12 +105,23 @@ async def synthesize(text: str) -> tuple[bytes, str]:
     }
 
     try:
-        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=False) as client:
             create_response = await client.post(_api_url(), json=payload, headers=headers)
             if create_response.status_code >= 400:
                 raise VbeeError(_error_message(create_response))
 
-            audio_response = await client.get(_audio_link(create_response.json()))
+            audio_url = _audio_link(create_response.json())
+            audio_response = await client.get(audio_url)
+            for _ in range(2):
+                if audio_response.status_code not in {301, 302, 303, 307, 308}:
+                    break
+                location = audio_response.headers.get("location")
+                if not location:
+                    raise VbeeError("Vbee returned an invalid audio redirect")
+                audio_url = _audio_link(
+                    {"status": 1, "result": {"audio_link": location}}
+                )
+                audio_response = await client.get(audio_url)
     except VbeeError:
         raise
     except ValueError as exc:

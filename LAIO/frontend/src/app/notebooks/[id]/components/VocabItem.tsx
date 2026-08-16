@@ -7,9 +7,9 @@ import { Vocab } from '../types';
 
 interface VocabItemProps {
   vocab: Vocab;
-  onToggleMaster: (id: string) => void;
+  onToggleMaster: (id: string) => Promise<void>;
   onEdit: (vocab: Vocab) => void;
-  onDelete: (id: string) => void;
+  onDelete: (id: string) => Promise<void>;
   onSpeak: (id: string) => Promise<void>;
 }
 
@@ -31,6 +31,22 @@ function difficultyLabel(value?: number) {
 export default function VocabItem({ vocab, onToggleMaster, onEdit, onDelete, onSpeak }: VocabItemProps) {
   const [isMeaningHidden, setIsMeaningHidden] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [pendingAction, setPendingAction] = useState<'master' | 'delete' | null>(null);
+
+  const runAction = async (
+    action: 'master' | 'delete',
+    operation: () => Promise<void>,
+  ) => {
+    if (pendingAction) return;
+    try {
+      setPendingAction(action);
+      await operation();
+    } catch {
+      // The parent owns the visible API error state for this notebook.
+    } finally {
+      setPendingAction(null);
+    }
+  };
 
   const speak = async () => {
     if (isSpeaking) return;
@@ -107,7 +123,8 @@ export default function VocabItem({ vocab, onToggleMaster, onEdit, onDelete, onS
 
           <button
             type="button"
-            onClick={() => onToggleMaster(vocab.id)}
+            onClick={() => void runAction('master', () => onToggleMaster(vocab.id))}
+            disabled={pendingAction !== null}
             className={`rounded-xl p-2 transition-all hover:bg-white hover:shadow-sm ${
               vocab.is_mastered ? 'text-amber-500' : 'text-slate-300 hover:text-amber-500'
             }`}
@@ -119,6 +136,7 @@ export default function VocabItem({ vocab, onToggleMaster, onEdit, onDelete, onS
           <button
             type="button"
             onClick={() => onEdit(vocab)}
+            disabled={pendingAction !== null}
             className="rounded-xl p-2 text-slate-400 transition-all hover:bg-white hover:text-indigo-600 hover:shadow-sm"
             title="Edit"
           >
@@ -127,7 +145,8 @@ export default function VocabItem({ vocab, onToggleMaster, onEdit, onDelete, onS
 
           <button
             type="button"
-            onClick={() => onDelete(vocab.id)}
+            onClick={() => void runAction('delete', () => onDelete(vocab.id))}
+            disabled={pendingAction !== null}
             className="rounded-xl p-2 text-slate-400 transition-all hover:bg-white hover:text-red-600 hover:shadow-sm"
             title="Delete"
           >

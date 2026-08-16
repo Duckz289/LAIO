@@ -10,9 +10,15 @@ interface StudyModeProps {
   sessionReady: boolean;
   starting?: boolean;
   onReview: (id: string, score: number, timeSpentMs: number) => Promise<void>;
-  onComplete: () => Promise<void>;
+  onComplete: () => Promise<ReviewSummary>;
   onBackToNotes: () => void | Promise<void>;
   onSpeak: (id: string) => Promise<void>;
+}
+
+interface ReviewSummary {
+  answered_items: number;
+  correct_answers: number;
+  accuracy_percentage: number;
 }
 
 const gradeButtons = [
@@ -37,6 +43,7 @@ export default function StudyMode({
   const [submitting, setSubmitting] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [summary, setSummary] = useState<ReviewSummary | null>(null);
 
   const current = dueVocabs[currentIndex];
   const progress = useMemo(() => {
@@ -45,12 +52,14 @@ export default function StudyMode({
   }, [currentIndex, dueVocabs.length]);
 
   useEffect(() => {
+    if (!sessionReady) return;
     setCurrentIndex(0);
     setShowAnswer(false);
     setCompleted(false);
     setAnswerStartedAt(Date.now());
     setError(null);
-  }, [dueVocabs.length]);
+    setSummary(null);
+  }, [sessionReady]);
 
   const [speaking, setSpeaking] = useState(false);
 
@@ -79,7 +88,8 @@ export default function StudyMode({
         setCurrentIndex((index) => index + 1);
         setAnswerStartedAt(Date.now());
       } else {
-        await onComplete();
+        const completedSession = await onComplete();
+        setSummary(completedSession);
         setCompleted(true);
         setCurrentIndex(0);
       }
@@ -110,6 +120,22 @@ export default function StudyMode({
         <p className="mt-2 text-sm leading-6 text-slate-600">
           Phiên học đã được hoàn tất và lịch SRS đã cập nhật qua learning session API.
         </p>
+        {summary && (
+          <div className="mx-auto mt-5 grid max-w-md grid-cols-3 gap-3">
+            <div className="rounded-2xl bg-white p-3">
+              <p className="text-xl font-black text-slate-950">{summary.answered_items}</p>
+              <p className="text-xs font-bold text-slate-500">Reviewed</p>
+            </div>
+            <div className="rounded-2xl bg-white p-3">
+              <p className="text-xl font-black text-slate-950">{summary.correct_answers}</p>
+              <p className="text-xs font-bold text-slate-500">Correct</p>
+            </div>
+            <div className="rounded-2xl bg-white p-3">
+              <p className="text-xl font-black text-slate-950">{summary.accuracy_percentage}%</p>
+              <p className="text-xs font-bold text-slate-500">Accuracy</p>
+            </div>
+          </div>
+        )}
         <button
           type="button"
           onClick={() => void onBackToNotes()}

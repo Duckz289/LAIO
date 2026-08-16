@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { X, Mail, Lock, ArrowRight, Github } from "lucide-react";
 import { isSupabaseConfigured, supabase, supabaseConfigError } from "@/lib/supabase";
 
@@ -16,6 +16,28 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const emailInputRef = useRef<HTMLInputElement>(null);
+  const loadingRef = useRef(false);
+
+  useEffect(() => {
+    loadingRef.current = loading;
+  }, [loading]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const previouslyFocused = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    emailInputRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !loadingRef.current) onClose();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      previouslyFocused?.focus();
+    };
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -32,13 +54,23 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+        });
         if (error) throw error;
+        if (data.session) {
+          window.location.assign("/dashboard");
+          return;
+        }
         setSuccessMsg("Đăng ký thành công. Hãy kiểm tra email để xác thực tài khoản.");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
         if (error) throw error;
-        window.location.href = "/notebooks";
+        window.location.assign("/dashboard");
       }
     } catch (error: unknown) {
       setErrorMsg(error instanceof Error ? error.message : "Đã xảy ra lỗi, vui lòng thử lại.");
@@ -54,6 +86,8 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     }
 
     try {
+      setLoading(true);
+      setErrorMsg("");
       const { error } = await supabase.auth.signInWithOAuth({
         provider: provider,
         options: {
@@ -63,21 +97,39 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
       if (error) throw error;
     } catch (error: unknown) {
       setErrorMsg(error instanceof Error ? error.message : "Không thể đăng nhập bằng GitHub.");
+      setLoading(false);
     }
+  };
+
+  const toggleMode = () => {
+    setIsSignUp((current) => !current);
+    setErrorMsg("");
+    setSuccessMsg("");
+    setPassword("");
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
       {/* Backdrop - xuất hiện NGAY LẬP TỨC, không animation */}
-      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
+      <button
+        type="button"
+        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+        onClick={onClose}
+        disabled={loading}
+        tabIndex={-1}
+        aria-label="Đóng bằng cách bấm ra ngoài"
+      />
 
       {/* Popup - chỉ popup này mới có animation */}
       <div className="relative z-10 w-full max-w-md animate-zoomIn">
         <div className="bg-white rounded-2xl border border-slate-100 shadow-2xl overflow-hidden p-6 flex flex-col gap-5">
           
           <button 
+            type="button"
             onClick={onClose} 
+            disabled={loading}
             className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-50 transition-all duration-200"
+            aria-label="Đóng cửa sổ đăng nhập"
           >
             <X className="w-5 h-5" />
           </button>
@@ -92,13 +144,13 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           </div>
 
           {errorMsg && (
-            <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-600 animate-shake">
+            <div role="alert" className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-600 animate-shake">
               ⚠️ {errorMsg}
             </div>
           )}
 
           {successMsg && (
-            <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+            <div role="status" className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
               {successMsg}
             </div>
           )}
@@ -111,11 +163,14 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
           <form onSubmit={handleEmailAuth} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-slate-700">Địa chỉ Email</label>
+              <label htmlFor="auth-email" className="text-xs font-semibold text-slate-700">Địa chỉ Email</label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
                 <input
+                  id="auth-email"
+                  ref={emailInputRef}
                   type="email"
+                  autoComplete="email"
                   placeholder="name@example.com"
                   required
                   value={email}
@@ -126,11 +181,14 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-slate-700">Mật khẩu</label>
+              <label htmlFor="auth-password" className="text-xs font-semibold text-slate-700">Mật khẩu</label>
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
                 <input
+                  id="auth-password"
                   type="password"
+                  autoComplete={isSignUp ? "new-password" : "current-password"}
+                  minLength={isSignUp ? 8 : undefined}
                   placeholder="••••••••"
                   required
                   value={password}
@@ -146,7 +204,10 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium py-2.5 rounded-xl transition-all duration-200 flex items-center justify-center gap-1 mt-2 text-sm shadow-sm"
             >
               {loading ? (
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" aria-hidden="true" />
+                  <span>Đang xử lý...</span>
+                </>
               ) : (
                 <>
                   {isSignUp ? "Đăng ký" : "Đăng nhập"}
@@ -165,7 +226,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           <button
             type="button"
             onClick={() => handleOAuthLogin("github")}
-            disabled={!isSupabaseConfigured}
+            disabled={!isSupabaseConfigured || loading}
             className="w-full border border-slate-200 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 text-slate-700 font-medium py-2.5 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 text-sm shadow-sm"
           >
             <Github className="w-4 h-4" />
@@ -176,7 +237,8 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             {isSignUp ? "Bạn đã có tài khoản?" : "Chưa có tài khoản?"}{" "}
             <button
               type="button"
-              onClick={() => setIsSignUp(!isSignUp)}
+              onClick={toggleMode}
+              disabled={loading}
               className="text-blue-600 font-semibold hover:underline"
             >
               {isSignUp ? "Đăng nhập ngay" : "Tạo tài khoản miễn phí"}

@@ -94,6 +94,7 @@ EXPECTED_INDEXES = {
     LearningSession: {
         "idx_learning_sessions_user_status",
         "idx_learning_sessions_user_date",
+        "uq_learning_sessions_one_active_per_user",
     },
     ReviewHistory: {
         "idx_review_history_user_date",

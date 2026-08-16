@@ -11,6 +11,7 @@ from sqlalchemy import (
     Integer,
     String,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -32,6 +33,13 @@ class LearningSession(Base):
             name="ck_learning_sessions_status",
         ),
         Index("idx_learning_sessions_user_status", "user_id", "status"),
+        Index(
+            "uq_learning_sessions_one_active_per_user",
+            "user_id",
+            unique=True,
+            postgresql_where=text("status = 'active'"),
+            sqlite_where=text("status = 'active'"),
+        ),
     )
 
     user_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False)

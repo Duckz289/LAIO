@@ -29,27 +29,45 @@ def create_vocab_item(
 def search_vocab_items(
     notebook_id: UUID,
     q: str = Query(min_length=1, max_length=500),
+    limit: int = Query(default=100, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
     user_id: UUID = Depends(get_current_user),
 ):
-    result = vocab_service.search_vocab_items(db, notebook_id, user_id, q)
+    result = vocab_service.search_vocab_items(
+        db, notebook_id, user_id, q, limit, offset
+    )
     if result is None:
         raise HTTPException(status_code=404, detail="Notebook not found")
     items, total = result
-    return VocabItemListResponse(vocab_items=items, total=total)
+    return VocabItemListResponse(
+        vocab_items=items,
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.get("/notebook/{notebook_id}", response_model=VocabItemListResponse)
 def list_vocab_items(
     notebook_id: UUID,
+    limit: int = Query(default=100, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
     user_id: UUID = Depends(get_current_user),
 ):
-    result = vocab_service.list_vocab_items(db, notebook_id, user_id)
+    result = vocab_service.list_vocab_items(
+        db, notebook_id, user_id, limit, offset
+    )
     if result is None:
         raise HTTPException(status_code=404, detail="Notebook not found")
     items, total = result
-    return VocabItemListResponse(vocab_items=items, total=total)
+    return VocabItemListResponse(
+        vocab_items=items,
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.get("/{vocab_id}", response_model=VocabItemResponse)
@@ -64,7 +82,8 @@ def get_vocab_item(
     return vocab
 
 
-@router.put("/{vocab_id}", response_model=VocabItemResponse)
+@router.put("/{vocab_id}", response_model=VocabItemResponse, deprecated=True)
+@router.patch("/{vocab_id}", response_model=VocabItemResponse)
 def update_vocab_item(
     vocab_id: UUID,
     data: VocabItemUpdate,

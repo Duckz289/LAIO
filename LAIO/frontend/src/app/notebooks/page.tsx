@@ -91,6 +91,7 @@ export default function NotebooksPage() {
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const fetchNotebooks = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -144,6 +145,10 @@ export default function NotebooksPage() {
       setDescription("");
       setIsModalOpen(false);
       setNotebooks((current) => [createdNotebook, ...current]);
+      setProgress((current) => current ? {
+        ...current,
+        total_notebooks: current.total_notebooks + 1,
+      } : current);
     } catch (createError) {
       console.warn("Failed to create notebook:", createError);
       setCreateError(
@@ -157,23 +162,38 @@ export default function NotebooksPage() {
   };
 
   const handleDeleteNotebook = async (id: string) => {
+    if (deletingId) return;
     if (!confirm("Xóa sổ tay này? Toàn bộ từ vựng bên trong cũng sẽ bị xóa.")) return;
+    const deletedNotebook = notebooks.find((notebook) => notebook.id === id);
     try {
+      setDeletingId(id);
       await api.deleteNotebook(id);
       setNotebooks((current) => current.filter((notebook) => notebook.id !== id));
+      setProgress((current) => current ? {
+        ...current,
+        total_notebooks: Math.max(0, current.total_notebooks - 1),
+        total_vocabulary: Math.max(
+          0,
+          current.total_vocabulary - (deletedNotebook?.vocab_count ?? 0),
+        ),
+        due_today: Math.max(
+          0,
+          current.due_today - (deletedNotebook?.due_count ?? 0),
+        ),
+      } : current);
     } catch (deleteError) {
       console.error("Failed to delete notebook:", deleteError);
       setError("Xóa sổ tay thất bại. Vui lòng thử lại.");
+    } finally {
+      setDeletingId(null);
     }
   };
 
   const startReview = () => {
-    const firstNotebook = notebooks[0];
-    if (!firstNotebook) return;
-    if (typeof window !== "undefined") {
-      window.sessionStorage.setItem("laio:auto-study-notebook", firstNotebook.id);
-    }
-    router.push(`/notebooks/${firstNotebook.id}`);
+    const dueNotebook = notebooks.find((notebook) => notebook.due_count > 0);
+    if (!dueNotebook) return;
+    window.sessionStorage.setItem("laio:auto-study-notebook", dueNotebook.id);
+    router.push(`/notebooks/${dueNotebook.id}`);
   };
 
   const todayDue = progress?.due_today ?? 0;
@@ -200,7 +220,7 @@ export default function NotebooksPage() {
               <div className="mt-7 flex flex-col gap-3 sm:flex-row">
                 <button
                   onClick={startReview}
-                  disabled={notebooks.length === 0 || authLoading || loading}
+                  disabled={todayDue === 0 || authLoading || loading}
                   className="inline-flex items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-600/25 transition-all hover:-translate-y-0.5 hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
                 >
                   Start Review
@@ -286,6 +306,14 @@ export default function NotebooksPage() {
               <div>
                 <p className="font-bold">Load failed</p>
                 <p>{error}</p>
+                <button
+                  type="button"
+                  onClick={() => void fetchNotebooks()}
+                  disabled={loading}
+                  className="mt-2 rounded-xl bg-white px-3 py-2 text-xs font-black shadow-sm disabled:opacity-50"
+                >
+                  Thử lại
+                </button>
               </div>
             </div>
           )}
@@ -346,10 +374,15 @@ export default function NotebooksPage() {
                       </button>
                       <button
                         onClick={() => handleDeleteNotebook(notebook.id)}
+                        disabled={deletingId !== null}
                         className="rounded-2xl p-2 text-slate-300 transition-all hover:bg-red-50 hover:text-red-600"
                         title="Delete notebook"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        {deletingId === notebook.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
                       </button>
                     </div>
 
@@ -402,11 +435,13 @@ export default function NotebooksPage() {
           <button
             className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm"
             onClick={() => setIsModalOpen(false)}
+            disabled={submitting}
             aria-label="Close create notebook modal"
           />
           <div className="relative z-10 w-full max-w-lg animate-zoomIn rounded-[2rem] border border-white/80 bg-white p-6 shadow-2xl shadow-slate-950/20">
             <button
               onClick={() => setIsModalOpen(false)}
+              disabled={submitting}
               className="absolute right-5 top-5 rounded-2xl bg-slate-100 p-2 text-slate-500 transition-all hover:bg-slate-200 hover:text-slate-800"
               aria-label="Close modal"
             >
@@ -431,6 +466,7 @@ export default function NotebooksPage() {
                   placeholder="IELTS Academic Vocabulary"
                   className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium outline-none transition-all focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100"
                   required
+                  maxLength={255}
                 />
               </div>
               <div>
@@ -440,6 +476,7 @@ export default function NotebooksPage() {
                   onChange={(event) => setDescription(event.target.value)}
                   placeholder="Words for Writing Task 1, school exams, or daily review..."
                   rows={3}
+                  maxLength={5000}
                   className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium outline-none transition-all focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100"
                 />
               </div>
@@ -455,6 +492,7 @@ export default function NotebooksPage() {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
+                  disabled={submitting}
                   className="flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 transition-all hover:bg-slate-50"
                 >
                   Cancel

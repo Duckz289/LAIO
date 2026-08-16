@@ -50,3 +50,12 @@ def test_updates_reject_null_for_not_null_columns(schema, payload) -> None:
 def test_game_counts_preserve_database_invariants() -> None:
     with pytest.raises(ValidationError):
         GameSessionEnd(total_questions=2, correct_answers=3)
+
+
+def test_vocab_urls_reject_unsafe_schemes() -> None:
+    with pytest.raises(ValidationError):
+        VocabItemCreate(
+            word="unsafe",
+            meaning="không an toàn",
+            audio_url="javascript:alert(1)",
+        )
