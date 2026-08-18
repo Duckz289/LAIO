@@ -12,8 +12,17 @@ justify service extraction.
 - **vocabulary** — notebooks and vocabulary content
 - **learning** — learning sessions and submitted answers
 - **scheduling** — review schedule and the pure SM-2 policy
+- **planning** — future deterministic study planner: selects session content
+  from schedule state, learner profile, availability, and school context;
+  records a reason per selection (see `STRATEGY.md`)
 - **gamification** — future XP, streaks, and achievements
 - **analytics** — progress summaries and recommendations
+
+The planner and any AI assistance read learner state and write selections and
+suggestions; they never mutate the SRS schedule policy, `ReviewHistory`, or
+ownership. AI providers are adapters at the edge, like the dictionary
+provider, and are never the source of truth for scheduling, mastery, or
+learning history.
 
 ## Dependency rule
 

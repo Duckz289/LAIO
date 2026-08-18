@@ -28,6 +28,38 @@ Notebook responses include the database-backed aggregate fields `vocab_count`,
 Vocabulary responses include optional schedule fields:
 `next_review_date`, `repetition_count`, `interval_days`, and `ease_factor`.
 
+Vocabulary requests and responses also include `cefr_level`
+(`A1`–`C2` or `null`), additive alongside the existing `difficulty_level`
+(1–5). The two are unrelated: `difficulty_level` has no bearing on SRS
+scheduling, and `cefr_level` is not consumed by it either.
+
+### Vocabulary lookup
+
+`GET /vocab-items/lookup?term={term}`
+
+Looks up dictionary metadata for a word or short phrase to speed up manual
+vocabulary entry. `term` is required, 1–200 characters. The response is
+normalized application data only — it never exposes which external
+dictionary provider was used:
+
+```json
+{
+  "term": "abandon",
+  "ipa": "/əˈbændən/",
+  "audio_url": "https://...",
+  "cefr": null,
+  "status": "found"
+}
+```
+
+`status` is one of `found`, `not_found`, or `unavailable`. `ipa`,
+`audio_url`, and `cefr` are `null` whenever that data isn't available —
+`cefr` is currently always `null` because no CEFR data source is wired in
+yet. A `not_found` or `unavailable` status is not an error; the frontend
+must still allow manual vocabulary creation. This endpoint never fails the
+request because of the external provider; provider outages surface only as
+`status: "unavailable"`.
+
 ### Vocabulary audio
 
 `POST /vocab-items/{vocab_id}/audio`

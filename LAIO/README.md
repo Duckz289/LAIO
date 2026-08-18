@@ -1,7 +1,10 @@
 # LAIO
 
-LAIO is a personalized English-learning platform built as a modular monolith with
-Next.js, FastAPI, PostgreSQL, and Supabase Auth.
+LAIO is a persistent learning memory and decision system for Vietnamese
+secondary/high-school students' English learning, built as a modular monolith
+with Next.js, FastAPI, PostgreSQL, and Supabase Auth. The proven first loop is
+vocabulary capture → spaced-repetition review → measurable progress; the
+long-term direction is in `STRATEGY.md`.
 
 ## Local development
 
@@ -67,8 +70,8 @@ npm run build
 npm audit
 ```
 
-See `PRODUCT.md`, `ARCHITECTURE.md`, and `API_CONTRACT.md` before starting a
-new milestone.
+See `PRODUCT.md`, `STRATEGY.md`, `ARCHITECTURE.md`, and `API_CONTRACT.md`
+before starting a new milestone.
 
 ## Existing database migration
 
