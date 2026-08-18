@@ -3,6 +3,7 @@
 import React, { useEffect, useId, useRef, useState } from "react";
 import { X, Mail, Lock, ArrowRight, Github } from "lucide-react";
 import { isSupabaseConfigured, supabase, supabaseConfigError } from "@/lib/supabase";
+import AnimatedModal from "@/components/AnimatedModal";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -45,8 +46,6 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
       previouslyFocused?.focus();
     };
   }, [isOpen, onClose]);
-
-  if (!isOpen) return null;
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,19 +115,17 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
-      <button
-        type="button"
-        className="absolute inset-0 bg-[#0d2b24]/60"
-        onClick={onClose}
-        disabled={loading}
-        tabIndex={-1}
-        aria-label="Đóng bằng cách bấm ra ngoài"
-      />
+    <AnimatedModal
+      isOpen={isOpen}
+      onClose={onClose}
+      closeLabel="Đóng bằng cách bấm ra ngoài"
+      closeDisabled={loading}
+      labelledBy="auth-modal-title"
+      panelClassName="max-w-md"
+      overlayClassName="fixed inset-0 z-[100] flex items-center justify-center p-4"
+    >
+      <div className="flex flex-col gap-5 overflow-hidden rounded-[30px] bg-[#fffdf7] p-6 shadow-xl shadow-[#0d2b24]/15 sm:p-7">
 
-      <div className="relative z-10 w-full max-w-md animate-zoomIn">
-        <div className="flex flex-col gap-5 overflow-hidden rounded-[30px] border-[3px] border-[#173f34] bg-[#fffdf7] p-6 shadow-2xl shadow-[#0d2b24]/20 sm:p-7">
-          
           <button
             type="button"
             onClick={onClose}
@@ -140,11 +137,11 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           </button>
 
           <div className="text-center mt-2">
-            <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-[20px] border-[3px] border-[#173f34] bg-[#f8df7d] text-xl font-black text-[#173f34]">L</div>
-            <h2 id="auth-modal-title" className="landing-display text-2xl font-black tracking-[-0.035em] text-[#173f34]">
+            <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-[20px] bg-[#f8df7d] text-xl font-black text-[#173f34] shadow-sm">L</div>
+            <h2 id="auth-modal-title" className="landing-display text-2xl font-black leading-[1.15] tracking-[-0.035em] text-[#173f34]">
               {isSignUp ? "Tạo tài khoản mới" : "Chào mừng trở lại"}
             </h2>
-            <p className="mt-2 text-sm font-medium text-[#597168]">
+            <p className="mt-2 text-sm font-medium leading-6 text-[#597168]">
               {isSignUp ? "Bắt đầu hành trình làm chủ từ vựng cùng LAIO" : "Đăng nhập để tiếp tục lộ trình ôn tập"}
             </p>
           </div>
@@ -171,7 +168,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             <div className="flex flex-col gap-1.5">
               <label htmlFor={emailId} className="text-xs font-black text-[#173f34]">Địa chỉ email</label>
               <div className="relative">
-                <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
+                <Mail className="w-4 h-4 text-[#8fa99b] absolute left-3 top-3.5" />
                 <input
                   type="email"
                   id={emailId}
@@ -189,7 +186,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             <div className="flex flex-col gap-1.5">
               <label htmlFor={passwordId} className="text-xs font-black text-[#173f34]">Mật khẩu</label>
               <div className="relative">
-                <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
+                <Lock className="w-4 h-4 text-[#8fa99b] absolute left-3 top-3.5" />
                 <input
                   type="password"
                   id={passwordId}
@@ -207,11 +204,11 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             <button
               type="submit"
               disabled={loading || !isSupabaseConfigured}
-              className="mt-2 flex w-full items-center justify-center gap-1 rounded-full border-[3px] border-[#173f34] bg-[#f8df7d] py-3 text-sm font-black text-[#173f34] transition-transform duration-200 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-55"
+              className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-full bg-[#173f34] py-3 text-sm font-black text-white transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#0f3028] disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:translate-y-0"
             >
               {loading ? (
                 <>
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#173f34] border-t-transparent" aria-hidden="true" />
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true" />
                   <span>Đang xử lý...</span>
                 </>
               ) : (
@@ -251,7 +248,6 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             </button>
           </p>
         </div>
-      </div>
-    </div>
+    </AnimatedModal>
   );
 }

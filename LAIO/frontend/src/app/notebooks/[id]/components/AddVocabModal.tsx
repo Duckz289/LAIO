@@ -1,9 +1,12 @@
 'use client';
 
 import { Loader2, Volume2, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
-import { Vocab, VocabMutation } from '../types';
+import AnimatedModal from '@/components/AnimatedModal';
+import { useVocabLookup } from '@/hooks/useVocabLookup';
+
+import { CefrLevel, Vocab, VocabMutation } from '../types';
 
 interface AddVocabModalProps {
   isOpen: boolean;
@@ -14,12 +17,15 @@ interface AddVocabModalProps {
 
 type VocabForm = VocabMutation;
 
+const CEFR_LEVELS: CefrLevel[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+
 const emptyForm: VocabForm = {
   word: '',
   meaning: '',
   pronunciation: '',
   example_sentence: '',
   difficulty_level: 1,
+  cefr_level: null,
   is_mastered: false,
 };
 
@@ -27,16 +33,26 @@ export default function AddVocabModal({ isOpen, onClose, onAdd, editingVocab }: 
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [formError, setFormError] = useState<string | null>(null);
+  const [lookupAudioUrl, setLookupAudioUrl] = useState<string | null>(null);
+  // Once a field has been manually edited, an in-flight/late lookup result
+  // must never overwrite it again for the rest of this modal session.
+  const touchedRef = useRef({ pronunciation: false, cefr: false });
+
+  const isCreating = !editingVocab;
+  const lookup = useVocabLookup(form.word, isOpen && isCreating);
 
   useEffect(() => {
     if (!isOpen) return;
     setFormError(null);
+    setLookupAudioUrl(null);
+    touchedRef.current = { pronunciation: false, cefr: false };
     setForm({
       word: editingVocab?.word || '',
       meaning: editingVocab?.meaning || '',
       pronunciation: editingVocab?.pronunciation || '',
       example_sentence: editingVocab?.example_sentence || '',
       difficulty_level: editingVocab?.difficulty_level || 1,
+      cefr_level: editingVocab?.cefr_level || null,
       is_mastered: editingVocab?.is_mastered || false,
     });
   }, [editingVocab, isOpen]);
@@ -49,6 +65,50 @@ export default function AddVocabModal({ isOpen, onClose, onAdd, editingVocab }: 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose, submitting]);
+
+  // Apply a successful lookup, but never overwrite a field the user already
+  // edited by hand.
+  useEffect(() => {
+    if (lookup.status !== 'found' || !lookup.data) return;
+    const result = lookup.data;
+    setForm((current) => ({
+      ...current,
+      pronunciation: touchedRef.current.pronunciation
+        ? current.pronunciation
+        : result.ipa ?? current.pronunciation,
+      cefr_level: touchedRef.current.cefr ? current.cefr_level : result.cefr ?? current.cefr_level,
+    }));
+    setLookupAudioUrl(result.audio_url);
+  }, [lookup.status, lookup.data]);
+
+  const handleWordChange = (value: string) => {
+    if (!isCreating) {
+      setForm((current) => ({ ...current, word: value }));
+      return;
+    }
+    // A new term invalidates all term-derived state — pronunciation, CEFR,
+    // lookup audio, and manual-edit ownership all belonged to the old term.
+    // This must not be conditional on `touched`: a manual edit only wins
+    // against a late lookup for the *same* term, not across a term change.
+    touchedRef.current = { pronunciation: false, cefr: false };
+    setLookupAudioUrl(null);
+    setForm((current) => ({
+      ...current,
+      word: value,
+      pronunciation: '',
+      cefr_level: null,
+    }));
+  };
+
+  const handleIpaChange = (value: string) => {
+    touchedRef.current.pronunciation = true;
+    setForm((current) => ({ ...current, pronunciation: value }));
+  };
+
+  const handleCefrChange = (value: string) => {
+    touchedRef.current.cefr = true;
+    setForm((current) => ({ ...current, cefr_level: (value || null) as CefrLevel | null }));
+  };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -66,7 +126,10 @@ export default function AddVocabModal({ isOpen, onClose, onAdd, editingVocab }: 
         meaning: form.meaning.trim(),
         pronunciation: (form.pronunciation || '').trim() || null,
         example_sentence: form.example_sentence.trim(),
+        audio_url: lookupAudioUrl ?? undefined,
       });
+      touchedRef.current = { pronunciation: false, cefr: false };
+      setLookupAudioUrl(null);
       setForm(emptyForm);
       onClose();
     } catch (error) {
@@ -82,50 +145,57 @@ export default function AddVocabModal({ isOpen, onClose, onAdd, editingVocab }: 
     }
   };
 
-  const speak = () => {
-    if (!form.word.trim()) return;
+  const speakWithBrowserTts = () => {
     const utterance = new SpeechSynthesisUtterance(form.word);
     utterance.lang = 'en-US';
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(utterance);
   };
 
-  if (!isOpen) return null;
+  const speak = () => {
+    if (!form.word.trim()) return;
+    if (lookupAudioUrl) {
+      const audio = new Audio(lookupAudioUrl);
+      audio.play().catch(() => speakWithBrowserTts());
+      return;
+    }
+    speakWithBrowserTts();
+  };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="vocab-modal-title">
-      <button
-        className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm"
-        onClick={onClose}
-        disabled={submitting}
-        aria-label="Close vocabulary modal"
-      />
-
-      <div className="relative z-10 w-full max-w-xl animate-zoomIn rounded-[2rem] border border-white/80 bg-white p-6 shadow-2xl shadow-slate-950/20">
+    <AnimatedModal
+      isOpen={isOpen}
+      onClose={onClose}
+      closeLabel="Close vocabulary modal"
+      closeDisabled={submitting}
+      labelledBy="vocab-modal-title"
+      panelClassName="max-w-xl"
+    >
+      <div className="rounded-[30px] bg-brand-paper p-6 shadow-xl shadow-[#0d2b24]/15">
         <button
           type="button"
           onClick={onClose}
           disabled={submitting}
-          className="absolute right-5 top-5 rounded-2xl bg-slate-100 p-2 text-slate-500 transition-all hover:bg-slate-200 hover:text-slate-800"
+          className="absolute right-5 top-5 rounded-xl border-2 border-transparent p-2 text-brand-subtle transition-colors duration-200 hover:border-brand-forest hover:bg-brand-sand hover:text-brand-forest"
           aria-label="Close modal"
         >
           <X className="h-4 w-4" />
         </button>
 
         <div className="pr-10">
-          <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+          <div className="inline-flex h-12 w-12 items-center justify-center rounded-[20px] bg-brand-cream text-brand-forest shadow-sm">
             <Volume2 className="h-6 w-6" />
           </div>
-          <h2 id="vocab-modal-title" className="mt-4 text-2xl font-black tracking-tight text-slate-950">
+          <h2 id="vocab-modal-title" className="landing-display mt-4 text-2xl font-black tracking-[-0.035em] text-brand-forest">
             {editingVocab ? 'Edit vocabulary' : 'Add vocabulary'}
           </h2>
-          <p className="mt-2 text-sm leading-6 text-slate-500">
+          <p className="mt-2 text-sm leading-6 text-brand-subtle">
             Lưu từ mới vào notebook hiện tại. Review schedule sẽ do backend Learning/SRS xử lý.
           </p>
         </div>
 
         {formError && (
-          <div className="mt-5 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700" role="alert">
+          <div className="mt-5 rounded-xl border-2 border-brand-accent-soft bg-brand-error-bg px-4 py-3 text-sm font-semibold text-brand-accent-deep" role="alert">
             {formError}
           </div>
         )}
@@ -133,12 +203,12 @@ export default function AddVocabModal({ isOpen, onClose, onAdd, editingVocab }: 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
             <div>
-              <label className="text-sm font-bold text-slate-700">Word</label>
+              <label className="text-sm font-bold text-brand-forest">Word</label>
               <input
                 type="text"
                 value={form.word}
-                onChange={(event) => setForm({ ...form, word: event.target.value })}
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold outline-none transition-all focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100"
+                onChange={(event) => handleWordChange(event.target.value)}
+                className="mt-2 w-full rounded-xl border-2 border-[#173f3430] bg-white px-4 py-3 text-sm font-semibold text-brand-forest outline-none transition-colors placeholder:text-brand-faint focus:border-brand-forest"
                 placeholder="abandon"
                 required
                 maxLength={500}
@@ -147,89 +217,92 @@ export default function AddVocabModal({ isOpen, onClose, onAdd, editingVocab }: 
             <button
               type="button"
               onClick={speak}
-              className="self-end rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-500 transition-all hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600"
+              className="self-end rounded-xl border-2 border-[#173f3430] bg-white px-4 py-3 text-brand-subtle transition-colors hover:border-brand-forest hover:bg-brand-sand hover:text-brand-forest"
               title="Speak word"
             >
               <Volume2 className="h-5 w-5" />
             </button>
           </div>
 
+          <div className="flex items-center justify-between gap-3 px-1">
+            <input
+              type="text"
+              value={form.pronunciation || ''}
+              onChange={(event) => handleIpaChange(event.target.value)}
+              placeholder="/…/"
+              maxLength={500}
+              aria-label="IPA pronunciation"
+              className="w-full max-w-[180px] rounded-lg border-2 border-transparent bg-transparent px-1 py-1 font-mono text-sm text-brand-subtle outline-none transition-colors placeholder:text-brand-faint focus:border-brand-forest focus:bg-white"
+            />
+            <select
+              value={form.cefr_level || ''}
+              onChange={(event) => handleCefrChange(event.target.value)}
+              aria-label="CEFR level"
+              className="rounded-full border-2 border-[#173f3430] bg-white px-3 py-1.5 text-xs font-black text-brand-forest outline-none transition-colors focus:border-brand-forest"
+            >
+              <option value="">—</option>
+              {CEFR_LEVELS.map((level) => (
+                <option key={level} value={level}>{level}</option>
+              ))}
+            </select>
+          </div>
+          {isCreating && lookup.status === 'loading' && (
+            <p className="-mt-3 px-1 text-xs font-semibold text-brand-faint">Đang tra cứu…</p>
+          )}
+          {isCreating && lookup.status === 'unavailable' && (
+            <p className="-mt-3 px-1 text-xs font-semibold text-brand-faint">Không tự động lấy được cách phát âm.</p>
+          )}
+
           <div>
-            <label className="text-sm font-bold text-slate-700">Meaning</label>
+            <label className="text-sm font-bold text-brand-forest">Meaning</label>
             <input
               type="text"
               value={form.meaning}
               onChange={(event) => setForm({ ...form, meaning: event.target.value })}
-              className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold outline-none transition-all focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100"
+              className="mt-2 w-full rounded-xl border-2 border-[#173f3430] bg-white px-4 py-3 text-sm font-medium text-brand-forest outline-none transition-colors placeholder:text-brand-faint focus:border-brand-forest"
               placeholder="bỏ rơi, từ bỏ"
               required
               maxLength={10000}
             />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="text-sm font-bold text-slate-700">Pronunciation</label>
-              <input
-                type="text"
-                value={form.pronunciation || ''}
-                onChange={(event) => setForm({ ...form, pronunciation: event.target.value })}
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold outline-none transition-all focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100"
-                placeholder="/əˈbændən/"
-                maxLength={500}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-bold text-slate-700">Difficulty</label>
-              <select
-                value={form.difficulty_level}
-                onChange={(event) => setForm({ ...form, difficulty_level: Number(event.target.value) })}
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold outline-none transition-all focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100"
-              >
-                <option value={1}>Easy</option>
-                <option value={2}>Normal</option>
-                <option value={3}>Medium</option>
-                <option value={4}>Hard</option>
-                <option value={5}>Very hard</option>
-              </select>
-            </div>
-          </div>
-
           <div>
-            <label className="text-sm font-bold text-slate-700">Example sentence</label>
+            <label className="text-sm font-bold text-brand-forest">Example sentence</label>
             <textarea
               value={form.example_sentence}
               onChange={(event) => setForm({ ...form, example_sentence: event.target.value })}
               rows={3}
-              className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold outline-none transition-all focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100"
+              className="mt-2 w-full resize-none rounded-xl border-2 border-[#173f3430] bg-white px-4 py-3 text-sm font-medium text-brand-forest outline-none transition-colors placeholder:text-brand-faint focus:border-brand-forest"
               placeholder="He abandoned the plan after the test failed."
               maxLength={10000}
             />
           </div>
 
-          <label className="flex items-center gap-3 rounded-2xl bg-slate-50 p-3 text-sm font-bold text-slate-600">
-            <input
-              type="checkbox"
-              checked={form.is_mastered}
-              onChange={(event) => setForm({ ...form, is_mastered: event.target.checked })}
-              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-            />
-            Mark as mastered
-          </label>
+          {editingVocab && (
+            <label className="flex items-center gap-3 rounded-2xl bg-brand-sand p-3 text-sm font-bold text-brand-subtle">
+              <input
+                type="checkbox"
+                checked={form.is_mastered}
+                onChange={(event) => setForm({ ...form, is_mastered: event.target.checked })}
+                className="h-4 w-4 rounded border-[#173f3440] text-brand-forest focus:ring-brand-forest"
+              />
+              Mark as mastered
+            </label>
+          )}
 
           <div className="flex flex-col gap-3 pt-2 sm:flex-row">
             <button
               type="button"
               onClick={onClose}
               disabled={submitting}
-              className="flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 transition-all hover:bg-slate-50"
+              className="flex-1 rounded-full border-2 border-[#173f3435] bg-white px-4 py-3 text-sm font-black text-brand-forest transition-colors hover:border-brand-forest hover:bg-brand-sand"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="flex-1 rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-600/20 transition-all hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
+              className="flex-1 rounded-full bg-brand-cream px-4 py-3 text-sm font-black text-brand-forest shadow-sm transition-transform duration-200 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:translate-y-0"
             >
               {submitting ? (
                 <span className="inline-flex items-center justify-center gap-2">
@@ -241,6 +314,6 @@ export default function AddVocabModal({ isOpen, onClose, onAdd, editingVocab }: 
           </div>
         </form>
       </div>
-    </div>
+    </AnimatedModal>
   );
 }

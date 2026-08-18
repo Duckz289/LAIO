@@ -2,11 +2,13 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { motion } from 'motion/react';
 import { ArrowRight, CalendarClock, CheckCircle2 } from 'lucide-react';
 
 import AppShell from '@/components/AppShell';
 import { useAuth } from '@/hooks/useAuth';
 import { api, DueReviewItem } from '@/lib/api';
+import { listContainer, listItem } from '@/lib/motionVariants';
 
 export default function ReviewPage() {
   const { user, loading: authLoading } = useAuth();
@@ -40,18 +42,18 @@ export default function ReviewPage() {
   return (
     <AppShell title="Review" userEmail={user?.email}>
       <div className="space-y-6">
-        <section className="rounded-[2rem] border border-white/70 bg-white/90 p-6 shadow-xl shadow-indigo-100/40 sm:p-8">
+        <section className="rounded-[2rem] border border-[#173f3420] bg-white p-6 shadow-sm sm:p-8">
           <div className="flex items-start gap-4">
-            <div className="rounded-2xl bg-indigo-50 p-3 text-indigo-600"><CalendarClock className="h-6 w-6" aria-hidden="true" /></div>
+            <div className="rounded-2xl bg-brand-sand p-3 text-brand-forest"><CalendarClock className="h-6 w-6" aria-hidden="true" /></div>
             <div>
-              <h1 className="text-3xl font-black tracking-tight text-slate-950">Review due words</h1>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">Chọn một notebook để mở đúng phiên SRS. Trạng thái hiện tại được giữ nguyên khi chuyển tab.</p>
+              <h1 className="landing-display text-3xl font-black tracking-[-0.035em] text-brand-forest">Review due words</h1>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-brand-subtle">Chọn một notebook để mở đúng phiên SRS. Trạng thái hiện tại được giữ nguyên khi chuyển tab.</p>
             </div>
           </div>
         </section>
 
         {error && (
-          <div className="flex items-center justify-between gap-4 rounded-3xl border border-red-100 bg-red-50 p-4 text-sm font-semibold text-red-700" role="alert">
+          <div className="flex items-center justify-between gap-4 rounded-3xl border border-brand-accent-soft bg-brand-error-bg p-4 text-sm font-semibold text-brand-accent-deep" role="alert">
             <span>{error}</span>
             <button
               type="button"
@@ -65,26 +67,30 @@ export default function ReviewPage() {
         )}
 
         {loading || authLoading ? (
-          <div className="space-y-3">{Array.from({ length: 4 }).map((_, index) => <div key={index} className="h-20 animate-pulse rounded-3xl bg-white/70" />)}</div>
+          <div className="space-y-3">{Array.from({ length: 4 }).map((_, index) => <div key={index} className="h-20 animate-pulse rounded-3xl bg-brand-sand" />)}</div>
         ) : items.length === 0 ? (
-          <div className="rounded-3xl border border-emerald-100 bg-emerald-50 p-10 text-center shadow-sm">
-            <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-600" aria-hidden="true" />
-            <h2 className="mt-4 text-xl font-black text-slate-950">All caught up</h2>
-            <p className="mt-2 text-sm text-slate-600">Hôm nay chưa có từ nào cần ôn.</p>
-            <Link href="/notebooks" className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-bold text-white hover:bg-indigo-700">Open notebooks <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
+          <div className="rounded-3xl border-2 border-brand-success-border bg-brand-success-bg p-10 text-center shadow-sm">
+            <CheckCircle2 className="mx-auto h-10 w-10 text-brand-success" aria-hidden="true" />
+            <h2 className="landing-display mt-4 text-xl font-black tracking-[-0.03em] text-brand-forest">All caught up</h2>
+            <p className="mt-2 text-sm text-brand-muted">Hôm nay chưa có từ nào cần ôn.</p>
+            <Link href="/notebooks" className="mt-5 inline-flex items-center gap-2 rounded-full bg-brand-forest px-5 py-3 text-sm font-black text-white transition-colors hover:bg-brand-forest-dark">Open notebooks <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
           </div>
         ) : (
-          <section className="space-y-3">
+          <motion.section className="space-y-3" variants={listContainer} initial="hidden" animate="visible">
             {items.map((item) => (
-              <article key={`${item.notebook_id}-${item.vocab_item_id}`} className="flex flex-col gap-4 rounded-3xl border border-white/70 bg-white/90 p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+              <motion.article
+                key={`${item.notebook_id}-${item.vocab_item_id}`}
+                variants={listItem}
+                className="flex flex-col gap-4 rounded-3xl border border-[#173f3420] bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+              >
                 <div className="min-w-0">
-                  <h2 className="truncate text-lg font-black text-slate-950">{item.word}</h2>
-                  <p className="mt-1 truncate text-sm font-semibold text-slate-500">{item.meaning}</p>
+                  <h2 className="landing-display truncate text-lg font-black tracking-[-0.03em] text-brand-forest">{item.word}</h2>
+                  <p className="mt-1 truncate text-sm font-semibold text-brand-subtle">{item.meaning}</p>
                 </div>
-                <Link href={`/notebooks/${item.notebook_id}`} onClick={() => openNotebookReview(item.notebook_id)} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white hover:bg-indigo-700">Review word <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
-              </article>
+                <Link href={`/notebooks/${item.notebook_id}`} onClick={() => openNotebookReview(item.notebook_id)} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-brand-forest px-4 py-3 text-sm font-black text-white transition-colors hover:bg-brand-forest-dark">Review word <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
+              </motion.article>
             ))}
-          </section>
+          </motion.section>
         )}
       </div>
     </AppShell>

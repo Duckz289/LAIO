@@ -22,10 +22,10 @@ interface ReviewSummary {
 }
 
 const gradeButtons = [
-  { label: 'Again', score: 0, helper: 'Forgot', className: 'bg-red-50 text-red-700 hover:bg-red-100' },
-  { label: 'Hard', score: 2, helper: 'Almost', className: 'bg-amber-50 text-amber-700 hover:bg-amber-100' },
-  { label: 'Good', score: 3, helper: 'Correct', className: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' },
-  { label: 'Easy', score: 5, helper: 'Instant', className: 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100' },
+  { label: 'Again', score: 0, helper: 'Forgot', className: 'bg-brand-error-bg text-brand-accent-deep hover:bg-[#ffe3d6]' },
+  { label: 'Hard', score: 2, helper: 'Almost', className: 'bg-brand-warn-bg text-brand-warn hover:bg-[#ffeeb8]' },
+  { label: 'Good', score: 3, helper: 'Correct', className: 'bg-brand-success-bg text-brand-success hover:bg-[#dff0d3]' },
+  { label: 'Easy', score: 5, helper: 'Instant', className: 'bg-brand-sand text-brand-forest hover:bg-[#eee5cf]' },
 ];
 
 export default function StudyMode({
@@ -103,43 +103,43 @@ export default function StudyMode({
 
   if (starting) {
     return (
-      <div className="rounded-3xl border border-white/70 bg-white/95 p-10 text-center shadow-sm shadow-slate-200/60">
-        <Loader2 className="mx-auto h-8 w-8 animate-spin text-indigo-600" />
-        <p className="mt-4 text-sm font-bold text-slate-600">Preparing learning session...</p>
+      <div className="rounded-3xl border border-[#173f3420] bg-white p-10 text-center shadow-sm">
+        <Loader2 className="mx-auto h-8 w-8 animate-spin text-brand-forest" />
+        <p className="mt-4 text-sm font-bold text-brand-subtle">Preparing learning session...</p>
       </div>
     );
   }
 
   if (completed) {
     return (
-      <div className="rounded-3xl border border-emerald-100 bg-emerald-50 p-10 text-center shadow-sm">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-white text-emerald-600 shadow-sm">
+      <div className="rounded-3xl border-2 border-brand-success-border bg-brand-success-bg p-10 text-center shadow-sm">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-white text-brand-success shadow-sm">
           <CheckCircle2 className="h-8 w-8" />
         </div>
-        <h3 className="mt-5 text-2xl font-black text-slate-950">Review complete</h3>
-        <p className="mt-2 text-sm leading-6 text-slate-600">
+        <h3 className="landing-display mt-5 text-2xl font-black tracking-[-0.035em] text-brand-forest">Review complete</h3>
+        <p className="mt-2 text-sm leading-6 text-brand-muted">
           Phiên học đã được hoàn tất và lịch SRS đã cập nhật qua learning session API.
         </p>
         {summary && (
           <div className="mx-auto mt-5 grid max-w-md grid-cols-3 gap-3">
             <div className="rounded-2xl bg-white p-3">
-              <p className="text-xl font-black text-slate-950">{summary.answered_items}</p>
-              <p className="text-xs font-bold text-slate-500">Reviewed</p>
+              <p className="text-xl font-black text-brand-forest">{summary.answered_items}</p>
+              <p className="text-xs font-bold text-brand-subtle">Reviewed</p>
             </div>
             <div className="rounded-2xl bg-white p-3">
-              <p className="text-xl font-black text-slate-950">{summary.correct_answers}</p>
-              <p className="text-xs font-bold text-slate-500">Correct</p>
+              <p className="text-xl font-black text-brand-forest">{summary.correct_answers}</p>
+              <p className="text-xs font-bold text-brand-subtle">Correct</p>
             </div>
             <div className="rounded-2xl bg-white p-3">
-              <p className="text-xl font-black text-slate-950">{summary.accuracy_percentage}%</p>
-              <p className="text-xs font-bold text-slate-500">Accuracy</p>
+              <p className="text-xl font-black text-brand-forest">{summary.accuracy_percentage}%</p>
+              <p className="text-xs font-bold text-brand-subtle">Accuracy</p>
             </div>
           </div>
         )}
         <button
           type="button"
           onClick={() => void onBackToNotes()}
-          className="mt-6 rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white transition-all hover:bg-emerald-700"
+          className="mt-6 rounded-full bg-brand-forest px-5 py-3 text-sm font-black text-white transition-colors hover:bg-brand-forest-dark"
         >
           Back to vocabulary
         </button>
@@ -149,18 +149,18 @@ export default function StudyMode({
 
   if (dueVocabs.length === 0) {
     return (
-      <div className="rounded-3xl border border-emerald-100 bg-emerald-50 p-10 text-center shadow-sm">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-white text-emerald-600 shadow-sm">
+      <div className="rounded-3xl border-2 border-brand-success-border bg-brand-success-bg p-10 text-center shadow-sm">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-white text-brand-success shadow-sm">
           <CheckCircle2 className="h-8 w-8" />
         </div>
-        <h3 className="mt-5 text-2xl font-black text-slate-950">No reviews due</h3>
-        <p className="mt-2 text-sm leading-6 text-slate-600">
+        <h3 className="landing-display mt-5 text-2xl font-black tracking-[-0.035em] text-brand-forest">No reviews due</h3>
+        <p className="mt-2 text-sm leading-6 text-brand-muted">
           Hôm nay chưa có từ nào cần ôn. Có thể thêm từ mới hoặc quay lại danh sách.
         </p>
         <button
           type="button"
           onClick={() => void onBackToNotes()}
-          className="mt-6 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-bold text-white transition-all hover:bg-indigo-700"
+          className="mt-6 rounded-full bg-brand-forest px-5 py-3 text-sm font-black text-white transition-colors hover:bg-brand-forest-dark"
         >
           Back to notebook
         </button>
@@ -170,69 +170,69 @@ export default function StudyMode({
 
   if (!sessionReady) {
     return (
-      <div className="rounded-3xl border border-amber-100 bg-amber-50 p-8 text-center shadow-sm">
-        <Loader2 className="mx-auto h-7 w-7 animate-spin text-amber-600" />
-        <p className="mt-4 text-sm font-bold text-amber-800">Starting learning session...</p>
+      <div className="rounded-3xl border-2 border-brand-warn-border bg-brand-warn-bg p-8 text-center shadow-sm">
+        <Loader2 className="mx-auto h-7 w-7 animate-spin text-brand-warn" />
+        <p className="mt-4 text-sm font-bold text-brand-warn">Starting learning session...</p>
       </div>
     );
   }
 
   if (!current) {
     return (
-      <div className="rounded-3xl border border-slate-200 bg-white/90 p-10 text-center shadow-sm">
-        <Loader2 className="mx-auto h-7 w-7 animate-spin text-indigo-600" />
-        <p className="mt-4 text-sm font-bold text-slate-600">Updating review cards...</p>
+      <div className="rounded-3xl border border-[#173f3420] bg-white p-10 text-center shadow-sm">
+        <Loader2 className="mx-auto h-7 w-7 animate-spin text-brand-forest" />
+        <p className="mt-4 text-sm font-bold text-brand-muted">Updating review cards...</p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-[2rem] border border-white/70 bg-white/95 p-5 shadow-xl shadow-indigo-100/50 sm:p-8">
+    <div className="rounded-[2rem] border border-[#173f3420] bg-white p-5 shadow-sm sm:p-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-indigo-600">Flashcard session</p>
-          <h2 className="mt-2 text-2xl font-black text-slate-950">
+          <p className="section-kicker">Flashcard session</p>
+          <h2 className="landing-display mt-2 text-2xl font-black tracking-[-0.035em] text-brand-forest">
             Card {currentIndex + 1} / {dueVocabs.length}
           </h2>
         </div>
         <button
           type="button"
           onClick={() => void onBackToNotes()}
-          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-600 transition-all hover:bg-slate-50"
+          className="inline-flex items-center justify-center gap-2 rounded-full border-2 border-[#173f3435] bg-white px-4 py-3 text-sm font-black text-brand-forest transition-colors hover:border-brand-forest hover:bg-brand-sand"
         >
           <RotateCcw className="h-4 w-4" />
           Exit
         </button>
       </div>
 
-      <div className="mt-5 h-2.5 rounded-full bg-slate-100">
+      <div className="mt-5 h-2.5 rounded-full bg-brand-sand">
         <div
-          className="h-2.5 rounded-full bg-indigo-600 transition-all duration-500"
+          className="h-2.5 rounded-full bg-brand-forest transition-all duration-500"
           style={{ width: `${progress}%` }}
         />
       </div>
 
-      <div className="mt-8 rounded-[2rem] border border-slate-200 bg-gradient-to-br from-slate-50 to-indigo-50 p-8 text-center">
+      <div className="mt-8 rounded-[2rem] bg-brand-sand p-8 text-center">
         <button
           type="button"
           onClick={() => void speak()}
           disabled={speaking}
-          className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-indigo-600 shadow-sm transition-all hover:scale-105 disabled:cursor-wait disabled:opacity-60"
+          className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-brand-forest shadow-sm transition-transform duration-200 hover:scale-105 disabled:cursor-wait disabled:opacity-60"
           title="Speak word"
         >
           <Volume2 className={`h-5 w-5 ${speaking ? 'animate-pulse' : ''}`} />
         </button>
-        <h3 className="text-4xl font-black tracking-tight text-slate-950 sm:text-5xl">{current.word}</h3>
+        <h3 className="landing-display text-4xl font-black tracking-[-0.045em] text-brand-forest sm:text-5xl">{current.word}</h3>
         {current.pronunciation && (
-          <p className="mt-3 text-sm font-bold text-slate-400">{current.pronunciation}</p>
+          <p className="mt-3 text-sm font-bold text-brand-faint">{current.pronunciation}</p>
         )}
 
         {showAnswer ? (
           <div className="mx-auto mt-8 max-w-2xl rounded-3xl bg-white p-5 text-left shadow-sm">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-indigo-600">Meaning</p>
-            <p className="mt-2 text-lg font-bold leading-7 text-slate-800">{current.meaning}</p>
+            <p className="section-kicker">Meaning</p>
+            <p className="mt-2 text-lg font-bold leading-7 text-brand-forest">{current.meaning}</p>
             {current.example_sentence && (
-              <p className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-500">
+              <p className="mt-4 rounded-2xl bg-brand-sand p-4 text-sm leading-6 text-brand-muted">
                 “{current.example_sentence}”
               </p>
             )}
@@ -241,7 +241,7 @@ export default function StudyMode({
           <button
             type="button"
             onClick={() => setShowAnswer(true)}
-            className="mt-8 rounded-2xl bg-slate-950 px-6 py-3 text-sm font-black text-white shadow-lg shadow-slate-900/20 transition-all hover:bg-indigo-700"
+            className="mt-8 rounded-full bg-brand-forest px-6 py-3 text-sm font-black text-white transition-transform duration-200 hover:-translate-y-0.5 hover:bg-brand-forest-dark"
           >
             Show meaning
           </button>
@@ -249,7 +249,7 @@ export default function StudyMode({
       </div>
 
       {error && (
-        <div className="mt-5 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700" role="alert">
+        <div className="mt-5 rounded-2xl border-2 border-brand-accent-soft bg-brand-error-bg px-4 py-3 text-sm font-semibold text-brand-accent-deep" role="alert">
           {error}
         </div>
       )}

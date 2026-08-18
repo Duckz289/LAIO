@@ -1,4 +1,39 @@
+'use client';
+
+import { motion, useMotionValue, useSpring } from 'motion/react';
+import { useEffect, useRef } from 'react';
+
+// Max pupil travel in px, and the on-screen distance (px) at which that max is reached.
+const EYE_RADIUS = 5;
+const EYE_REACH = 260;
+
 export default function HeroMascot() {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const rawX = useMotionValue(0);
+  const rawY = useMotionValue(0);
+  const eyeX = useSpring(rawX, { stiffness: 320, damping: 24, mass: 0.4 });
+  const eyeY = useSpring(rawY, { stiffness: 320, damping: 24, mass: 0.4 });
+
+  useEffect(() => {
+    const handlePointerMove = (event: PointerEvent) => {
+      if (event.pointerType !== 'mouse') return;
+      const node = svgRef.current;
+      if (!node) return;
+      const rect = node.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const dx = event.clientX - centerX;
+      const dy = event.clientY - centerY;
+      const distance = Math.hypot(dx, dy) || 1;
+      const pull = Math.min(distance, EYE_REACH) / distance;
+      rawX.set((dx * pull * EYE_RADIUS) / EYE_REACH);
+      rawY.set((dy * pull * EYE_RADIUS) / EYE_REACH);
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    return () => window.removeEventListener('pointermove', handlePointerMove);
+  }, [rawX, rawY]);
+
   return (
     <div className="landing-mascot-enter relative mx-auto w-full max-w-[610px] lg:mx-0">
       <div className="speech-bubble absolute left-[2%] top-[2%] z-20 max-w-[190px] rounded-[22px] rounded-br-md bg-[#fffdf7] px-5 py-4 text-sm font-black leading-snug text-[#173f34] sm:left-[8%] sm:top-[5%]">
@@ -11,6 +46,7 @@ export default function HeroMascot() {
 
       <div className="mascot-float pt-12 sm:pt-4">
         <svg
+          ref={svgRef}
           viewBox="0 0 620 540"
           role="img"
           aria-labelledby="lumi-title lumi-desc"
@@ -60,16 +96,15 @@ export default function HeroMascot() {
           <path d="M208 326c-42 0-68 23-72 66 38 10 72-8 91-43" fill="#d8e78f" stroke="#173f34" strokeWidth="9" strokeLinecap="round" strokeLinejoin="round" />
           <path d="M441 317c43-3 72 18 79 60-37 14-73-2-95-35" fill="#d8e78f" stroke="#173f34" strokeWidth="9" strokeLinecap="round" strokeLinejoin="round" />
 
-          <g className="mascot-eyes">
-            <ellipse cx="274" cy="284" rx="10" ry="14" fill="#173f34" />
-            <ellipse cx="372" cy="284" rx="10" ry="14" fill="#173f34" />
-          </g>
+          <motion.g style={{ x: eyeX, y: eyeY }}>
+            <g className="mascot-eyes">
+              <ellipse cx="274" cy="284" rx="10" ry="14" fill="#173f34" />
+              <ellipse cx="372" cy="284" rx="10" ry="14" fill="#173f34" />
+            </g>
+          </motion.g>
           <path d="M292 327c19 21 43 22 65 0" fill="none" stroke="#173f34" strokeWidth="8" strokeLinecap="round" />
           <circle cx="248" cy="321" r="13" fill="#f690b7" opacity=".75" />
           <circle cx="397" cy="321" r="13" fill="#f690b7" opacity=".75" />
-
-          <path d="M256 452c-3 24-21 37-49 37" fill="none" stroke="#173f34" strokeWidth="9" strokeLinecap="round" />
-          <path d="M382 453c4 23 22 35 50 34" fill="none" stroke="#173f34" strokeWidth="9" strokeLinecap="round" />
 
           <g transform="translate(410 82)">
             <path d="m0 23 15 4 7 15 8-15 16-4-16-7L22 0l-7 16-15 7Z" fill="#fff4c5" />

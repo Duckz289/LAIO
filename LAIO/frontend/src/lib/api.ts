@@ -16,6 +16,8 @@ export interface NotebookRecord {
   due_count: number;
 }
 
+export type CefrLevel = "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
+
 export interface VocabRecord {
   id: string;
   notebook_id: string;
@@ -27,6 +29,7 @@ export interface VocabRecord {
   image_url: string;
   pos: string | null;
   difficulty_level: number;
+  cefr_level: CefrLevel | null;
   is_mastered: boolean;
   created_at: string;
   updated_at: string;
@@ -45,7 +48,16 @@ export interface VocabWriteInput {
   image_url?: string;
   pos?: string | null;
   difficulty_level?: number;
+  cefr_level?: CefrLevel | null;
   is_mastered?: boolean;
+}
+
+export interface VocabularyLookupResult {
+  term: string;
+  ipa: string | null;
+  audio_url: string | null;
+  cefr: CefrLevel | null;
+  status: "found" | "not_found" | "unavailable";
 }
 
 export interface LearningSession {
@@ -324,6 +336,11 @@ export const api = {
   deleteVocab: (id: string, options?: Pick<RequestInit, "signal">) =>
     del<void>(`/vocab-items/${id}`, options),
   generateVocabAudio: (id: string) => postAudio(`/vocab-items/${id}/audio`),
+  lookupVocab: (term: string, options?: Pick<RequestInit, "signal">) =>
+    get<VocabularyLookupResult>(
+      `/vocab-items/lookup?term=${encodeURIComponent(term)}`,
+      options,
+    ),
   getDueReviews: (notebookId?: string, options?: Pick<RequestInit, "signal">) =>
     get<{ items: DueReviewItem[]; total: number }>(
       `/reviews/due${notebookId ? `?notebook_id=${notebookId}` : ""}`,

@@ -61,13 +61,13 @@ export default function VocabItem({ vocab, onToggleMaster, onEdit, onDelete, onS
   };
 
   return (
-    <article className="group rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-lg hover:shadow-indigo-100/70">
+    <article className="group rounded-3xl border border-[#173f3420] bg-white p-5 shadow-sm transition-transform duration-200 hover:-translate-y-0.5 hover:border-brand-forest">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h4 className="text-xl font-black tracking-tight text-slate-950">{vocab.word}</h4>
+            <h4 className="landing-display text-xl font-black tracking-[-0.03em] text-brand-forest">{vocab.word}</h4>
             {vocab.pronunciation && (
-              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">
+              <span className="rounded-full bg-brand-sand px-2.5 py-1 text-xs font-bold text-brand-muted">
                 {vocab.pronunciation}
               </span>
             )}
@@ -75,47 +75,47 @@ export default function VocabItem({ vocab, onToggleMaster, onEdit, onDelete, onS
               type="button"
               onClick={() => void speak()}
               disabled={isSpeaking}
-              className="rounded-xl p-2 text-slate-400 transition-all hover:bg-indigo-50 hover:text-indigo-600 disabled:cursor-wait disabled:opacity-50"
+              className="rounded-xl p-2 text-brand-faint transition-colors hover:bg-brand-sand hover:text-brand-forest disabled:cursor-wait disabled:opacity-50"
               title="Speak"
             >
-              <Volume2 className={`h-4 w-4 ${isSpeaking ? 'animate-pulse text-indigo-600' : ''}`} />
+              <Volume2 className={`h-4 w-4 ${isSpeaking ? 'animate-pulse text-brand-forest' : ''}`} />
             </button>
           </div>
 
           {!isMeaningHidden ? (
-            <p className="mt-3 text-sm font-semibold leading-6 text-slate-700">{vocab.meaning}</p>
+            <p className="mt-3 text-sm font-semibold leading-6 text-brand-muted">{vocab.meaning}</p>
           ) : (
-            <p className="mt-3 text-sm font-semibold italic text-slate-400">Meaning hidden</p>
+            <p className="mt-3 text-sm font-semibold italic text-brand-faint">Meaning hidden</p>
           )}
 
           {vocab.example_sentence && (
-            <p className="mt-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-500">
+            <p className="mt-3 rounded-2xl bg-brand-sand px-4 py-3 text-sm leading-6 text-brand-muted">
               “{vocab.example_sentence}”
             </p>
           )}
 
-          <div className="mt-4 flex flex-wrap gap-2 text-xs font-bold text-slate-500">
-            <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-3 py-1.5 text-indigo-700">
+          <div className="mt-4 flex flex-wrap gap-2 text-xs font-bold text-brand-muted">
+            <span className="inline-flex items-center gap-1 rounded-full bg-brand-cream-soft px-3 py-1.5 text-brand-forest">
               <CalendarClock className="h-3.5 w-3.5" />
               Next: {formatDate(vocab.next_review_date)}
             </span>
-            <span className="rounded-full bg-slate-100 px-3 py-1.5">
+            <span className="rounded-full bg-brand-sand px-3 py-1.5">
               Rep {vocab.repetition_count ?? 0}
             </span>
-            <span className="rounded-full bg-slate-100 px-3 py-1.5">
+            <span className="rounded-full bg-brand-sand px-3 py-1.5">
               {vocab.interval_days ?? 0}d interval
             </span>
-            <span className="rounded-full bg-slate-100 px-3 py-1.5">
+            <span className="rounded-full bg-brand-sand px-3 py-1.5">
               {difficultyLabel(vocab.difficulty_level)}
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-1 self-start rounded-2xl bg-slate-50 p-1">
+        <div className="flex items-center gap-1 self-start rounded-2xl bg-brand-sand p-1">
           <button
             type="button"
             onClick={() => setIsMeaningHidden((current) => !current)}
-            className="rounded-xl p-2 text-slate-400 transition-all hover:bg-white hover:text-slate-700 hover:shadow-sm"
+            className="rounded-xl p-2 text-brand-faint transition-colors hover:bg-white hover:text-brand-forest"
             title={isMeaningHidden ? 'Show meaning' : 'Hide meaning'}
           >
             {isMeaningHidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -125,8 +125,8 @@ export default function VocabItem({ vocab, onToggleMaster, onEdit, onDelete, onS
             type="button"
             onClick={() => void runAction('master', () => onToggleMaster(vocab.id))}
             disabled={pendingAction !== null}
-            className={`rounded-xl p-2 transition-all hover:bg-white hover:shadow-sm ${
-              vocab.is_mastered ? 'text-amber-500' : 'text-slate-300 hover:text-amber-500'
+            className={`rounded-xl p-2 transition-colors hover:bg-white ${
+              vocab.is_mastered ? 'text-brand-warn-border' : 'text-brand-faint hover:text-brand-warn-border'
             }`}
             title={vocab.is_mastered ? 'Mastered' : 'Mark mastered'}
           >
@@ -137,7 +137,7 @@ export default function VocabItem({ vocab, onToggleMaster, onEdit, onDelete, onS
             type="button"
             onClick={() => onEdit(vocab)}
             disabled={pendingAction !== null}
-            className="rounded-xl p-2 text-slate-400 transition-all hover:bg-white hover:text-indigo-600 hover:shadow-sm"
+            className="rounded-xl p-2 text-brand-faint transition-colors hover:bg-white hover:text-brand-forest"
             title="Edit"
           >
             <Edit2 className="h-4 w-4" />
@@ -147,7 +147,7 @@ export default function VocabItem({ vocab, onToggleMaster, onEdit, onDelete, onS
             type="button"
             onClick={() => void runAction('delete', () => onDelete(vocab.id))}
             disabled={pendingAction !== null}
-            className="rounded-xl p-2 text-slate-400 transition-all hover:bg-white hover:text-red-600 hover:shadow-sm"
+            className="rounded-xl p-2 text-brand-faint transition-colors hover:bg-white hover:text-brand-accent-dark"
             title="Delete"
           >
             <Trash2 className="h-4 w-4" />

@@ -31,17 +31,25 @@ export default function ScrollReveal({
       return;
     }
 
+    // Fallback: if the observer never fires (hash-link landing, fast scroll,
+    // slow hydration), the element must not stay invisible forever.
+    const fallback = window.setTimeout(() => setIsVisible(true), 1200);
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (!entry.isIntersecting) return;
         setIsVisible(true);
+        window.clearTimeout(fallback);
         observer.unobserve(entry.target);
       },
       { rootMargin: "0px 0px -10%", threshold: 0.12 },
     );
 
     observer.observe(element);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      window.clearTimeout(fallback);
+    };
   }, []);
 
   return (

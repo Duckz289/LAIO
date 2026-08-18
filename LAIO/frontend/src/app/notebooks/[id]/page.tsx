@@ -33,6 +33,7 @@ function mapVocab(record: VocabRecord): Vocab {
     audio_url: record.audio_url,
     example_sentence: record.example_sentence || '',
     difficulty_level: record.difficulty_level,
+    cefr_level: record.cefr_level,
     is_mastered: record.is_mastered,
     next_review_date: record.next_review_date,
     repetition_count: record.repetition_count,
@@ -52,6 +53,7 @@ function mapDueReview(item: DueReviewItem): Vocab {
     audio_url: item.audio_url,
     example_sentence: item.example_sentence || '',
     difficulty_level: 1,
+    cefr_level: null,
     is_mastered: false,
     next_review_date: item.next_review_date,
     repetition_count: item.repetition_count,
@@ -84,17 +86,17 @@ function settle<T>(request: Promise<T>): Promise<SettledResult<T>> {
 
 function NotebookStatsSkeleton() {
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/60" aria-label="Loading notebook statistics">
-      <div className="h-4 w-32 animate-pulse rounded-full bg-slate-200" />
+    <div className="rounded-3xl border border-[#173f3420] bg-white p-5 shadow-sm" aria-label="Loading notebook statistics">
+      <div className="h-4 w-32 animate-pulse rounded-full bg-brand-sand" />
       <div className="mt-5 grid grid-cols-2 gap-3">
         {Array.from({ length: 4 }).map((_, index) => (
-          <div key={index} className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
-            <div className="h-3 w-16 animate-pulse rounded-full bg-slate-200" />
-            <div className="mt-3 h-6 w-10 animate-pulse rounded-lg bg-slate-200" />
+          <div key={index} className="rounded-2xl border border-[#173f3415] bg-brand-paper p-3">
+            <div className="h-3 w-16 animate-pulse rounded-full bg-brand-sand" />
+            <div className="mt-3 h-6 w-10 animate-pulse rounded-lg bg-brand-sand" />
           </div>
         ))}
       </div>
-      <div className="mt-5 h-2.5 animate-pulse rounded-full bg-slate-200" />
+      <div className="mt-5 h-2.5 animate-pulse rounded-full bg-brand-sand" />
     </div>
   );
 }
@@ -103,15 +105,15 @@ function VocabularyLoadingState() {
   return (
     <div className="space-y-3" aria-label="Loading vocabulary">
       {Array.from({ length: 3 }).map((_, index) => (
-        <div key={index} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/50">
+        <div key={index} className="rounded-3xl border border-[#173f3420] bg-white p-5 shadow-sm">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0 flex-1">
-              <div className="h-5 w-2/5 animate-pulse rounded-lg bg-slate-200" />
-              <div className="mt-3 h-4 w-3/4 animate-pulse rounded-lg bg-slate-100" />
+              <div className="h-5 w-2/5 animate-pulse rounded-lg bg-brand-sand" />
+              <div className="mt-3 h-4 w-3/4 animate-pulse rounded-lg bg-brand-sand" />
             </div>
-            <div className="h-9 w-20 animate-pulse rounded-xl bg-slate-100" />
+            <div className="h-9 w-20 animate-pulse rounded-xl bg-brand-sand" />
           </div>
-          <div className="mt-5 h-12 animate-pulse rounded-2xl bg-slate-50" />
+          <div className="mt-5 h-12 animate-pulse rounded-2xl bg-brand-paper" />
         </div>
       ))}
     </div>
@@ -421,7 +423,9 @@ export default function NotebookDetailPage() {
         pronunciation: newVocab.pronunciation,
         example_sentence: newVocab.example_sentence || '',
         difficulty_level: newVocab.difficulty_level,
+        cefr_level: newVocab.cefr_level,
         is_mastered: newVocab.is_mastered,
+        ...(newVocab.audio_url ? { audio_url: newVocab.audio_url } : {}),
       });
       const nextVocab = mapVocab(created);
       setVocabs((current) => [nextVocab, ...current]);
@@ -551,12 +555,12 @@ export default function NotebookDetailPage() {
   return (
     <AppShell title={notebook?.title || 'Notebook'} userEmail={user?.email}>
       <div className="space-y-6">
-        <section className="overflow-hidden rounded-[2rem] border border-white/70 bg-white/90 shadow-xl shadow-indigo-100/50">
+        <section className="overflow-hidden rounded-[2rem] border border-[#173f3420] bg-white shadow-sm">
           <div className="p-6 sm:p-8 lg:p-10">
             <button
               type="button"
               onClick={() => router.push('/notebooks')}
-              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:border-indigo-200 hover:text-indigo-700"
+              className="inline-flex items-center gap-2 rounded-full border-2 border-[#173f3440] bg-white px-4 py-2.5 text-sm font-black text-brand-forest transition-colors hover:border-brand-forest hover:bg-[#fff4c54d]"
             >
               <ArrowLeft className="h-4 w-4" aria-hidden="true" />
               Back
@@ -564,14 +568,14 @@ export default function NotebookDetailPage() {
 
             <div className="mt-6 grid gap-8 lg:grid-cols-[1.3fr_0.7fr] lg:items-end">
               <div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-indigo-700">
+                <div className="inline-flex items-center gap-2 rounded-full border border-[#173f3433] bg-[#fff4c566] px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-brand-forest">
                   <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
                   Notebook workspace
                 </div>
-                <h1 className="mt-5 text-3xl font-black tracking-tight text-slate-950 sm:text-5xl">
+                <h1 className="landing-display mt-5 text-3xl font-black tracking-[-0.035em] text-brand-forest sm:text-5xl">
                   {notebook?.title || 'Loading notebook'}
                 </h1>
-                <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-500 sm:text-base">
+                <p className="mt-4 max-w-2xl text-sm leading-6 text-brand-subtle sm:text-base">
                   {notebook?.description || 'Add vocabulary, review due words, and keep the SRS schedule moving.'}
                 </p>
               </div>
@@ -581,7 +585,7 @@ export default function NotebookDetailPage() {
                   type="button"
                   onClick={() => setIsAddModalOpen(true)}
                   disabled={!notebook}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-black text-slate-800 shadow-sm transition-all hover:-translate-y-0.5 hover:border-indigo-200 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-2 rounded-full border-2 border-[#173f3440] bg-white px-5 py-4 text-sm font-black text-brand-forest transition-all hover:-translate-y-0.5 hover:border-brand-forest hover:bg-[#fff4c54d] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Plus className="h-4 w-4" aria-hidden="true" />
                   Add word
@@ -590,7 +594,7 @@ export default function NotebookDetailPage() {
                   type="button"
                   onClick={() => void startStudy()}
                   disabled={!notebook || studyStarting}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-5 py-4 text-sm font-black text-white shadow-lg shadow-indigo-600/20 transition-all hover:-translate-y-0.5 hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-brand-forest px-5 py-4 text-sm font-black text-white transition-all hover:-translate-y-0.5 hover:bg-brand-forest-dark disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0"
                 >
                   {studyStarting ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Zap className="h-4 w-4" aria-hidden="true" />}
                   Start Learning
@@ -602,28 +606,30 @@ export default function NotebookDetailPage() {
 
         <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
           <aside className="space-y-5">
-            {notebook ? <StatsCard notebook={notebook} /> : <NotebookStatsSkeleton />}
+            <div className="content-reveal">
+              {notebook ? <StatsCard notebook={notebook} /> : <NotebookStatsSkeleton />}
+            </div>
             {notebook ? (
-              <div className="rounded-3xl border border-white/70 bg-white/90 p-5 shadow-sm shadow-slate-200/60">
-                <p className="text-sm font-black text-slate-950">Mastery snapshot</p>
+              <div className="content-reveal rounded-3xl border border-[#173f3420] bg-white p-5 shadow-sm">
+                <p className="text-sm font-black text-brand-forest">Mastery snapshot</p>
                 <div className="mt-4 flex items-center gap-4">
-                  <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-indigo-50">
-                    <span className="text-xl font-black text-indigo-700">{masteredPercent}%</span>
+                  <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-brand-cream-soft">
+                    <span className="text-xl font-black text-brand-forest">{masteredPercent}%</span>
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-bold text-slate-700">{notebook.masteredVocabs} mastered</p>
-                    <p className="mt-1 text-xs leading-5 text-slate-400">{notebook.dueVocabs} words due today.</p>
+                    <p className="text-sm font-bold text-brand-ink">{notebook.masteredVocabs} mastered</p>
+                    <p className="mt-1 text-xs leading-5 text-brand-faint">{notebook.dueVocabs} words due today.</p>
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/60" aria-label="Loading mastery snapshot">
-                <div className="h-4 w-36 animate-pulse rounded-full bg-slate-200" />
+              <div className="rounded-3xl border border-[#173f3420] bg-white p-5 shadow-sm" aria-label="Loading mastery snapshot">
+                <div className="h-4 w-36 animate-pulse rounded-full bg-brand-sand" />
                 <div className="mt-5 flex items-center gap-4">
-                  <div className="h-20 w-20 animate-pulse rounded-full bg-indigo-50" />
+                  <div className="h-20 w-20 animate-pulse rounded-full bg-brand-sand" />
                   <div className="flex-1">
-                    <div className="h-4 w-28 animate-pulse rounded-full bg-slate-200" />
-                    <div className="mt-3 h-3 w-36 animate-pulse rounded-full bg-slate-100" />
+                    <div className="h-4 w-28 animate-pulse rounded-full bg-brand-sand" />
+                    <div className="mt-3 h-3 w-36 animate-pulse rounded-full bg-brand-sand" />
                   </div>
                 </div>
               </div>
@@ -631,13 +637,13 @@ export default function NotebookDetailPage() {
           </aside>
 
           <section className="space-y-5">
-            <div className="flex overflow-hidden rounded-3xl border border-white/70 bg-white/90 p-2 shadow-sm shadow-slate-200/60" role="tablist" aria-label="Notebook views">
+            <div className="flex overflow-hidden rounded-3xl border border-[#173f3420] bg-white p-2 shadow-sm" role="tablist" aria-label="Notebook views">
               <button
                 type="button"
                 role="tab"
                 aria-selected={activeTab === 'notes'}
                 onClick={() => void exitStudy()}
-                className={`flex flex-1 items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-black transition-all ${activeTab === 'notes' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+                className={`flex flex-1 items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-black transition-all ${activeTab === 'notes' ? 'bg-brand-forest text-white' : 'text-brand-subtle hover:bg-brand-sand hover:text-brand-forest'}`}
               >
                 <BookOpen className="h-4 w-4" aria-hidden="true" />
                 Vocabulary ({loading && !vocabLoaded ? '…' : filteredVocabs.length})
@@ -648,7 +654,7 @@ export default function NotebookDetailPage() {
                 aria-selected={activeTab === 'study'}
                 onClick={() => void startStudy()}
                 disabled={!notebook || loading || studyStarting}
-                className={`flex flex-1 items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-black transition-all disabled:cursor-not-allowed disabled:opacity-60 ${activeTab === 'study' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+                className={`flex flex-1 items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-black transition-all disabled:cursor-not-allowed disabled:opacity-60 ${activeTab === 'study' ? 'bg-brand-forest text-white' : 'text-brand-subtle hover:bg-brand-sand hover:text-brand-forest'}`}
               >
                 {studyStarting ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <CalendarClock className="h-4 w-4" aria-hidden="true" />}
                 Review ({loading && !dueLoaded ? '…' : dueVocabs.length})
@@ -656,20 +662,20 @@ export default function NotebookDetailPage() {
             </div>
 
             {error && (
-              <div className="flex flex-col gap-3 rounded-3xl border border-red-100 bg-red-50 p-4 text-sm font-semibold text-red-700 sm:flex-row sm:items-center sm:justify-between" role="alert">
+              <div className="flex flex-col gap-3 rounded-3xl border-2 border-brand-accent-soft bg-brand-error-bg p-4 text-sm font-semibold text-brand-accent-deep sm:flex-row sm:items-center sm:justify-between" role="alert">
                 <p>{error}</p>
                 <button
                   type="button"
                   onClick={() => setReloadToken((current) => current + 1)}
                   disabled={loading}
-                  className="inline-flex shrink-0 items-center justify-center rounded-xl bg-white px-3 py-2 text-xs font-black text-red-700 shadow-sm transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex shrink-0 items-center justify-center rounded-xl bg-white px-3 py-2 text-xs font-black text-brand-accent-deep shadow-sm transition-colors hover:bg-brand-error-bg disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {loading ? 'Retrying...' : 'Retry'}
                 </button>
               </div>
             )}
 
-            <div hidden={activeTab !== 'notes'} aria-hidden={activeTab !== 'notes'}>
+            <div className="tab-panel" hidden={activeTab !== 'notes'} aria-hidden={activeTab !== 'notes'}>
               <div className="space-y-5">
                 <SearchBar
                   searchTerm={searchTerm}
@@ -679,16 +685,16 @@ export default function NotebookDetailPage() {
                 />
                 {!vocabLoaded && loading ? <VocabularyLoadingState /> : null}
                 {!vocabLoaded && !loading ? (
-                  <div className="rounded-3xl border border-amber-100 bg-amber-50 p-8 text-center" role="alert">
-                    <BookOpen className="mx-auto h-8 w-8 text-amber-600" aria-hidden="true" />
-                    <h3 className="mt-4 text-lg font-black text-slate-950">Vocabulary is unavailable</h3>
-                    <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">
+                  <div className="rounded-3xl border-2 border-brand-warn-border bg-brand-warn-bg p-8 text-center" role="alert">
+                    <BookOpen className="mx-auto h-8 w-8 text-brand-warn" aria-hidden="true" />
+                    <h3 className="landing-display mt-4 text-lg font-black text-brand-forest">Vocabulary is unavailable</h3>
+                    <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-brand-muted">
                       The vocabulary endpoint did not respond. Retry to load the list without losing the rest of the notebook.
                     </p>
                     <button
                       type="button"
                       onClick={() => setReloadToken((current) => current + 1)}
-                      className="mt-5 rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-indigo-600/20 transition-colors hover:bg-indigo-700"
+                      className="mt-5 rounded-full bg-brand-forest px-5 py-3 text-sm font-black text-white transition-colors hover:bg-brand-forest-dark"
                     >
                       Retry vocabulary
                     </button>
@@ -711,7 +717,7 @@ export default function NotebookDetailPage() {
               </div>
             </div>
 
-            <div hidden={activeTab !== 'study'} aria-hidden={activeTab !== 'study'}>
+            <div className="tab-panel" hidden={activeTab !== 'study'} aria-hidden={activeTab !== 'study'}>
               <StudyMode
                 dueVocabs={dueVocabs}
                 sessionReady={Boolean(learningSessionId) || dueVocabs.length === 0}
