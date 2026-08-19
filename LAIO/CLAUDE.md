@@ -1,75 +1,120 @@
-# CLAUDE.md - LAIO AI Handoff
+# LAIO agent operating contract
 
-Doc file nay dau tien khi mo phien Claude/Codex moi trong repo LAIO. Hien trang duoc cap nhat ngay 2026-08-16. `CONTEXT_SNAPSHOT.md` la lich su cu, khong phai contract hien tai.
+Read this file before modifying LAIO. It defines how an implementation agent
+turns approved product direction into **one** safe vertical slice; it is not a
+replacement for the product, architecture, contract, or feature-spec documents.
 
-## Source of truth
+## Mandatory first checks
 
-Thu tu uu tien khi co lech:
+1. Run `git status`, `git branch --show-current`, and `git log -1 --oneline`.
+   Never rely on a document's branch, commit, migration-head, or deployment
+   claim without verifying the checkout and relevant source.
+2. Read `AI_HANDOFF.md`, then the documents named in its required read order.
+3. Read the relevant existing tests before changing implementation.
+4. Do not read, print, commit, or share `.env*`, access tokens, JWT secrets,
+   service keys, or database URLs.
 
-1. Code hien tai.
-2. `API_CONTRACT.md`.
-3. `CONTEXT_SNAPSHOT.md`.
-4. `COLLAB_RULES.md`.
-5. Cac file docs con lai.
+## Concern-specific authorities
 
-Khong tu tao route/model/co che moi ngoai milestone spec. Neu thay docs lech code, bao ngay trong cau tra loi va cap nhat docs trong cung thay doi neu task cho phep.
+| Concern | Canonical authority | How to use it |
+| --- | --- | --- |
+| Long-term product strategy | `STRATEGY.md` | Thesis, hypotheses, phase order, and gates. |
+| Current product direction and milestone scope | `PRODUCT.md` | Working product summary; it does not override approved long-term strategy. |
+| Execution order and task state | `BACKLOG.md` | The only place to select the next `READY` task. |
+| Behavior intended by current work | Active `docs/specs/*.md` | Required for a `READY` or `IN_PROGRESS` task; defines the approved delta, not today's behavior. |
+| Public HTTP behavior | `API_CONTRACT.md` | Update this **before code** for any public route, method, request field, response field, or status-code change. |
+| Domain boundaries and invariants | `ARCHITECTURE.md` | Preserve ownership, transaction, SRS, and adapter boundaries. |
+| Database structure | Owner-approved, version-controlled canonical SQL when restored | No such canonical SQL is currently available; see `TECH_DEBT.md` and use migrations, models, and schema tests only as corroborating evidence. |
+| Agent working process | This file and `AI_HANDOFF.md` | Read together; link to canonical documents instead of copying them. |
+| Known unresolved work | `TECH_DEBT.md` | Do not silently fix unrelated debt. |
+| Current executable protections | Tests and CI configuration | Tests describe protected behavior, not untested product intent. |
+| Historical context | `CONTEXT_SNAPSHOT.md` | Context only; it never overrides a current authority. |
 
-## Phan chia ownership
+## Conflict protocol
 
-- Backend owner so huu `backend/**`: model, schema, service, route, migration, test backend.
-- Frontend owner so huu `frontend/**`: page, component, hook, API client, UI state.
-- Khong sua code phia ben kia tru khi user yeu cau truc tiep trong phien do. Neu bat buoc sua cheo ownership, ghi ro trong commit/PR.
-- Moi thay doi route/method/request field/response field/status code public phai cap nhat `API_CONTRACT.md` truoc khi code.
+- **Code versus active spec:** code describes what runs today; the active
+  `READY`/`IN_PROGRESS` spec describes the approved change. Compare them,
+  implement only the delta, and add verification. A spec never authorizes
+  behavior outside its stated scope.
+- **Code versus API contract:** report the mismatch before editing. Do not
+  silently reinterpret either source. Reconcile the contract before changing
+  public behavior.
+- **Strategy versus current scope:** `STRATEGY.md` governs long-term direction;
+  `PRODUCT.md` and an approved active spec govern the current slice. A strategy
+  hypothesis is not a product fact.
+- **Database uncertainty:** never manufacture a schema source of truth from
+  SQLAlchemy or Alembic. Stop for owner-approved schema clarification when a
+  schema decision cannot be safely derived from applied migrations.
+- **Historical context:** `CONTEXT_SNAPSHOT.md` is non-authoritative and cannot
+  settle a conflict.
 
-## Hien trang code that
+Record verified documentation/code discrepancies in the task report and, when
+within scope, reconcile the relevant current documentation. Record code defects
+outside the slice in `TECH_DEBT.md`.
 
-- FastAPI mount API tai `/api/v1` trong `backend/app/main.py:17`.
-- Router dang mount notebooks, vocab-items, reviews, game-sessions, learning-sessions, progress trong `backend/app/api/v1/router.py:13` den `backend/app/api/v1/router.py:18`.
-- Auth backend dung bearer token Supabase. Neu `SUPABASE_JWT_SECRET` co gia tri thi decode local trong `backend/app/api/deps.py:15` den `backend/app/api/deps.py:28`; neu khong thi fallback goi Supabase Auth API trong `backend/app/api/deps.py:30` den `backend/app/api/deps.py:44`.
-- `LearningSession` ton tai that: model o `backend/app/core/models/learning_session.py:19`, schemas o `backend/app/schemas/learning.py:10`, service o `backend/app/services/learning_service.py:16`, routes o `backend/app/api/v1/learning_sessions.py:20` den `backend/app/api/v1/learning_sessions.py:58`.
-- `VocabProgress` duoc database trigger `trg_vocab_items_create_progress` tao
-  dong bo sau khi insert `vocab_items`; application service khong insert row
-  thu hai.
-- List vocab tra schedule fields qua join `VocabProgress` o `backend/app/services/vocab_service.py:40` den `backend/app/services/vocab_service.py:58`; schema co `next_review_date`, `repetition_count`, `interval_days`, `ease_factor` o `backend/app/schemas/vocab_item.py:46` den `backend/app/schemas/vocab_item.py:49`.
-- SM-2 dang duoc goi trong duong learning-session submit; schedule hien tai
-  duoc update trong `vocab_progress`, con snapshot ghi dung cac cot schema v2
-  `ease_before/ease_after`, `interval_before/interval_after`, va
-  `next_review_date_after` trong `review_history`.
-- `GET /progress/summary` ton tai o `backend/app/api/v1/progress.py:14`, service tinh counters o `backend/app/services/analytics_service.py:13`.
-- Frontend API client canonical la `frontend/src/lib/api.ts`. Pages dung `api.*`, vi du notebooks page import o `frontend/src/app/notebooks/page.tsx:5`, detail page import o `frontend/src/app/notebooks/[id]/page.tsx:20`.
-- `useAuth` hoat dong va redirect khi thieu session: `frontend/src/hooks/useAuth.ts:9` den `frontend/src/hooks/useAuth.ts:37`.
-- `/dashboard`, `/notebooks`, `/notebooks/[id]`, va `/review` la cac page MVP that. Games/debug khong nam trong navigation MVP.
-- API co bounded pagination, rate/body limits, security headers; migration head la `0004`.
-- API client chi export domain methods; component khong duoc goi low-level helper.
+## Ownership and non-negotiable rules
 
-## Contract dang dung
+- Backend owner owns `backend/**`; frontend owner owns `frontend/**`. Do not
+  cross those boundaries unless the user explicitly requests it. State any
+  approved cross-boundary change in the handoff/PR.
+- Every user-scoped query filters by authenticated `user_id`; child resources
+  are authorized through their parent.
+- Route handlers parse and map; application services hold business rules;
+  services `flush` but do not commit; one HTTP request owns one DB session.
+- `VocabProgress` is the current SRS schedule. `ReviewHistory` is append-only
+  evidence. `is_mastered` is a UI flag, not an SRS exclusion.
+- AI or external providers may not become the source of truth for learner
+  state, scheduling, ownership, or recorded history.
+- Components use domain methods from `frontend/src/lib/api.ts`; do not add
+  direct product-data calls from page/components.
+- Never add a route, table, migration, infrastructure service, AI provider, or
+  architectural mechanism unless a `READY` spec explicitly requires it.
+- Never commit, push, deploy, migrate a live database, or delete data without
+  explicit user authorization.
 
-Doc `API_CONTRACT.md` truoc khi sua bat ky API nao. Tom tat route dang dung:
+## Autonomous roadmap mode
 
-- Notebooks: `GET/POST /notebooks/`, `GET/PATCH/DELETE /notebooks/{id}` (`PUT` deprecated).
-- Vocab: `POST /vocab-items/?notebook_id=...`, `GET /vocab-items/notebook/{notebook_id}`, `GET/PATCH/DELETE /vocab-items/{id}`, `GET /vocab-items/notebook/{notebook_id}/search?q=...` (`PUT` deprecated).
-- Reviews: `GET /reviews/due?limit=20&notebook_id=...`.
-- Learning: `POST /learning-sessions`, `POST /learning-sessions/{session_id}/answers`, `POST /learning-sessions/{session_id}/complete`, `POST /learning-sessions/{session_id}/abandon`.
-- Analytics: `GET /progress/summary`.
-- Game sessions: backend route co, frontend hien chua dung.
+When told “continue the roadmap” or “implement the next ready LAIO task,” do
+exactly this:
 
-## Luu y rieng cho Claude: local workspace khac GitHub/main
+1. Detect the Git state and read the required context in `AI_HANDOFF.md`.
+2. Read `BACKLOG.md`; select the highest-priority valid `READY` task only.
+3. Verify that its linked spec exists, is `READY` for the selected task,
+   explicitly lists or authorizes the selected backlog task ID, has no
+   unresolved blocking decision, and identifies API/database impact.
+4. Read the relevant `ARCHITECTURE.md`, `API_CONTRACT.md`, implementation, and
+   existing tests. Report any contradiction before editing.
+5. Implement one vertical slice only; do not pull adjacent `PLANNED` work into
+   the change.
+6. Add/update the test layers required by the spec and run the required checks.
+7. Update the spec with verification evidence, then update the backlog task
+   status. `DONE` requires all documented evidence; an unrun check means it is
+   not `DONE`.
+8. Report changed files, checks run/results, contract/database impact, and
+   unresolved risks. Do not commit or push unless explicitly instructed.
 
-Repo hien tai dang o branch `Minh_Phat`. Da fetch `origin` ngay 2026-06-24; remote chi co `origin/main`. Theo `git diff origin/main` va untracked files trong workspace, cac thay doi local quan trong so voi GitHub `origin/main` gom:
+### Stop conditions
 
-- Them docs moi: `API_CONTRACT.md`, `ARCHITECTURE.md`, `BACKLOG.md`, `PRODUCT.md`, `README.md`, `COLLAB_RULES.md`, `CONTEXT_SNAPSHOT.md`, va cap nhat lai `CLAUDE.md`, `TECH_DEBT.md`.
-- Them CI/workflow va skill folder local: `.github/workflows/ci.yml`, `.general-skill-build/**`.
-- Backend them Alembic va tests: `backend/alembic.ini`, `backend/alembic/**`, `backend/pytest.ini`, `backend/tests/**`.
-- Backend them learning/progress vertical slice: `backend/app/api/v1/learning_sessions.py`, `backend/app/api/v1/progress.py`, `backend/app/core/models/learning_session.py`, `backend/app/schemas/learning.py`, `backend/app/schemas/progress.py`, `backend/app/services/learning_service.py`, `backend/app/services/analytics_service.py`.
-- Backend sua config/auth/db/router/review/vocab/game services: `backend/app/core/config.py`, `backend/app/api/deps.py`, `backend/app/api/v1/router.py`, `backend/app/services/review_service.py`, `backend/app/services/vocab_service.py`, `backend/requirements.txt`.
-- Frontend sua API client typed + auth guard + learning flow: `frontend/src/lib/api.ts`, `frontend/src/hooks/useAuth.ts`, `frontend/src/app/notebooks/page.tsx`, `frontend/src/app/notebooks/[id]/page.tsx`, `frontend/src/app/notebooks/[id]/components/StudyMode.tsx`, `frontend/src/app/notebooks/[id]/components/AddVocabModal.tsx`.
-- Frontend co dashboard/review MVP that; game con ngoai pham vi va khong nam trong core navigation.
+Stop rather than inventing a solution when any of these applies:
 
-Neu user noi "so voi GitHub", dung danh sach tren lam canh bao: dung gia dinh GitHub/main da co cac file nay tru khi da fetch/pull va xac nhan.
+- no valid `READY` task exists;
+- its spec is missing, not `READY`, or does not resolve a required decision;
+- architecture or API-contract contradiction remains unresolved;
+- database source-of-truth uncertainty blocks a schema decision;
+- a required secret or external-service configuration is unavailable;
+- the slice requires a destructive migration or deployment;
+- the requested work would expand beyond the approved spec.
 
-## Definition of done
+State the exact blocker and the document/source that must resolve it.
 
-- Backend: chay pytest neu task cham backend va moi truong cho phep; neu sua route thi curl/Swagger thu cong it nhat 1 lan.
-- Frontend: chay `npm run typecheck` va `npm run build`; click UI that voi flow vua sua.
-- Public contract doi: cap nhat `API_CONTRACT.md` truoc khi code.
-- Phat hien/giai quyet no ky thuat: cap nhat `TECH_DEBT.md`.
+## Completion baseline
+
+- For backend changes, run the relevant pytest coverage; manually exercise a
+  changed authenticated route with authorized credentials when the environment
+  permits.
+- For frontend changes, run `npm run typecheck` and `npm run build`, then
+  manually exercise the affected user flow. These checks are not behavioral UI
+  tests; follow `TESTING.md` for the required verification layer.
+- For public contract changes, update `API_CONTRACT.md` before implementation.
+- For technical debt discovered or resolved in scope, update `TECH_DEBT.md`.
+- Finish with `git diff --check` and report anything that could not be run.

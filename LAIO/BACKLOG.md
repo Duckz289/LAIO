@@ -1,106 +1,108 @@
 # LAIO Backlog
 
-Structured by the two concurrent roadmaps in `STRATEGY.md` (§14–§23). Each
-phase is a vertical slice with a product gate AND a market gate; a phase does
-not start until the previous phase's gates are evaluated. Product work and
-market discovery run in parallel — G0 starts alongside P1.
+`STRATEGY.md` is the long-term roadmap. This file is its executable queue: it
+records the next valid implementation slice, dependencies, evidence, and task
+state without repeating strategy rationale. Product work and market discovery
+run concurrently; G0 begins alongside P1.
 
-## Completed — P0 basic vocabulary demo
+## Task states
 
-- Stable local setup checks, migrations, bounded API client, dependency audits
-- Register/login/logout and authenticated notebook/vocabulary ownership
-- Notebook and vocabulary CRUD, server search/filter, paged vocabulary loading
-- Learning sessions, answer history, SRS snapshots, completion accuracy
-- Dashboard notebook/word/due metrics and critical regression tests
+| Status | Meaning |
+| --- | --- |
+| `PLANNED` | Approved direction, but not yet executable. Do not implement it. |
+| `READY` | The next eligible task: dependencies are `DONE`, a usable `READY` spec exists, required product/architecture/API decisions are resolved, and no blocker is known. |
+| `IN_PROGRESS` | A single owner is implementing the linked spec. |
+| `BLOCKED` | A named decision, dependency, authority, secret, or external prerequisite prevents safe work. |
+| `DONE` | All acceptance criteria are satisfied, required checks and regression tests pass, and affected specs/contracts/docs contain evidence. |
+| `DEFERRED` | Intentionally postponed; it is not eligible for selection. |
+
+A task is never `DONE` merely because code appears present. If a required check
+cannot run, retain `READY`, `IN_PROGRESS`, or `BLOCKED` and record why.
+
+## Selection rules
+
+1. Select the highest-priority `READY` task only.
+2. Verify its linked spec is `READY` before editing code.
+3. Implement one vertical slice; never pull an adjacent `PLANNED` task into the
+   change.
+4. A task that changes a public API or database needs those decisions resolved
+   in its spec, with `API_CONTRACT.md` updated before implementation.
+5. Update the spec verification evidence before moving the task to `DONE`.
+
+## Completed — P0 Vocabulary Foundation
+
+**Status:** `DONE` as the existing demonstrated slice; its protected behavior
+is documented in `TESTING.md` and existing backend tests.
+
+- Authenticated notebook and vocabulary ownership
+- Notebook/vocabulary CRUD, bounded pagination, and server search
+- Learning sessions, answer history, SRS snapshots, and completion accuracy
+- Dashboard notebook/word/due metrics
+
+P0 is not a blanket claim that every future UI or production scenario is
+verified. Its remaining quality gaps belong in `TECH_DEBT.md`.
 
 ## Roadmap A — product/learning system
 
-### P1 — Retention & Evidence Foundation (next)
+### P1 — Retention & Evidence Foundation
 
-- Return-when-due surface: due preview and one-tap session start
-- Absence-safe review entry: cap daily load, order by forgetting risk,
-  redistribute the remainder honestly (no destructive rescheduling)
-- Extended evidence capture (additive): prompt direction and activity mode
-  per answer, submitted answer for typing/choice, session origin and planned
-  time budget
-- Weekly flexible consistency view (demote daily streak from primary)
-- Delayed-retention-check groundwork (7/30-day re-test scheduling concept)
-- Gate: users return when reviews are due; post-absence continuation holds
-  (measured on G0's testers)
+**Phase status:** `READY` — P0 establishes the base loop; P1.1 is the next executable slice.
+**Active spec:** [`docs/specs/P1-retention-evidence.md`](docs/specs/P1-retention-evidence.md)
+**Phase gate:** users return when reviews are due and can resume after absence;
+G0 provides the first 20–30-tester / two-week evidence window. See
+`STRATEGY.md` §10–§13 and §23.
 
-### P2 — Learner Profile + Availability + Minimal School Context
+| ID | Task | Status | Dependencies | Domain | Spec / completion evidence | Blocker |
+| --- | --- | --- | --- | --- | --- | --- |
+| P1.1 | Bounded return-when-due entry | `READY` | P0 | learning, scheduling, frontend | [P1 spec](docs/specs/P1-retention-evidence.md#p11--bounded-return-when-due-entry); acceptance IDs `P1-AC-001`–`P1-AC-007`; backend service/integration coverage, frontend typecheck/build, manual authenticated browser flow | None known. |
+| P1.2 | Additive answer and session evidence | `PLANNED` | P1.1 `DONE` | learning, database, API | Same P1 spec; requires a field-level design, migration plan, API contract update, and tests before it can be `READY`. | Exact data minimization and public API shape are not approved. |
+| P1.3 | Flexible weekly consistency view | `PLANNED` | P1.1 `DONE`, P1.2 decision | analytics, frontend | Same P1 spec; requires a defined calculation, UI copy, and acceptance IDs before it can be `READY`. | Weekly-window/product decision is unresolved. |
+| P1.4 | Delayed-retention groundwork | `BLOCKED` | P1.2 `DONE` | scheduling, analytics, database | Same P1 spec; requires owner-approved persistence and selection semantics. | A delayed-check schedule must not be invented from current SRS state. |
 
-- `UserLearningProfile`: grade (only required field), goal, weekly time
-  budget, default session target
-- Availability: day-level weekly template, max daily load, "busy today"
-- Minimal school context: optional book/unit labels, vocabulary source tag
-  (school / self-study / other), optional test date + scope
-- Gate: optional fields get filled without hurting onboarding; interviewees
-  recognize the fields as describing their real study life
+**P1 safety rules:** keep the current SRS truthful; do not destructively move
+an overdue item before its review; do not make the current daily streak the
+primary retention claim; do not introduce a planner, profile, notifications,
+or AI behavior under P1.
 
-### P3 — Adaptive 5–10 Minute Vocabulary Planner
+### Future product phases
 
-- Deterministic gate-based selection (due → weak → school-relevant → explore)
-  under 5/10/20-minute budgets; reason code stored per selection
-- Home becomes "what's worth doing today"; every item can answer "why am I
-  seeing this?"
-- Planner selection snapshots persisted for future baseline comparison
-- Gate: sessions complete under real budgets without hurting delayed
-  retention; users voluntarily return to the planner over the manual queue
+These phases remain strategic until their dependencies and a feature spec make
+them actionable. Do not select them merely because they are nearby.
 
-### P4 — Rich School Workflow (blocked on G0/G1 evidence that students value school-linked planning)
+| Phase | Status | Dependency / gate | Direction |
+| --- | --- | --- | --- |
+| P2 — Learner Profile + Availability + Minimal School Context | `PLANNED` | P1 product and G0 evidence evaluated | `STRATEGY.md` §5, §7, §8, §23 |
+| P3 — Adaptive 5–10 Minute Vocabulary Planner | `PLANNED` | P2 and pre-planner P1 baselines | `STRATEGY.md` §9, §23 |
+| P4 — Rich School Workflow | `BLOCKED` | G0/G1 must show school-linked planning value | `STRATEGY.md` §7, §15, §23 |
+| P5 — Error Memory | `PLANNED` | P4 evidence and delayed-verification design | `STRATEGY.md` §6, §23 |
+| P6 — Shared Knowledge/Skill Model | `PLANNED` | P5 evidence must show flat heuristics cap out | `STRATEGY.md` §14, §23 |
+| P7 — Model-driven practice beyond vocabulary | `PLANNED` | Learner-model need and prior phase gates | `STRATEGY.md` §14, §23 |
 
-- Test-error capture (learner-entered), unit transitions, richer curriculum
-  topic metadata, small personal vocabulary imports
-- Gate: entered errors and unit updates measurably change plans; test-week
-  return behavior improves
+## Roadmap B — market/user discovery
 
-### P5 — Error Memory
-
-- Deterministic weakness records (item- and tag-level) with lifecycle
-  observed → recurring → improving → recovered (delayed-check verified)
-- AI classification suggestions only, learner-confirmable, never source of
-  truth
-- Gate: learners recognize surfaced weaknesses as true and act on them
-
-### P6 — Shared Knowledge/Skill Model
-
-- Concept taxonomy and relationships, introduced only when P5 evidence
-  demands it and flat heuristics demonstrably cap out
-- Gate: beats the heuristics offline on the same data; personalization beats
-  a non-personalized baseline for users
-
-### P7 — Model-driven practice beyond vocabulary
-
-- Grammar/reading micro-activities introduced because the learner model
-  identifies needs vocabulary cannot serve — never as standalone feature tabs
-- Gate: each activity traces to a learner-model need and is used inside
-  daily sessions
-
-## Roadmap B — user/market (concurrent)
-
-- **G0 (runs alongside P1):** 8–12 THPT interviews + 20–30 hand-recruited
-  THPT testers for 2 weeks + ≥5-interview THCS probe; decides the wedge
-  hypothesis (`STRATEGY.md` §3–§4)
-- **G1:** activation experiment — capture-led first-value flow; measure the
-  activation event and time-to-value
-- **G2:** repeatable school-network acquisition via 2–5-friend clusters
-- **G3:** first shareable public artifact (study pack, then unit readiness
-  check from original content); value before signup
-- **G4:** content + SEO experiments (pain-first, every piece routes to a
-  product action)
-- **G5:** school-cluster growth at scale
-- **G6:** paid acquisition experiments — only after organic economics are
-  understood
-
-Cross-roadmap rules: no P4 if G0/G1 show school-context indifference; no
-viral/class features until organic sharing appears in G2/G3; distribution
-never waits for the product roadmap.
+| ID | Status | Scope and evidence | Dependency |
+| --- | --- | --- | --- |
+| G0 | `PLANNED` | 8–12 THPT interviews, 20–30 two-week testers, and ≥5 THCS probe interviews; validates the wedge and return-when-due behavior. | Runs alongside P1; protocol in `STRATEGY.md` §4. |
+| G1–G6 | `PLANNED` | Activation, acquisition, sharing, content, cluster, and paid-experiment stages. | Follow the gates in `STRATEGY.md` §15–§23. |
 
 ## Security and scale gates
 
-- Cached JWKS verification for projects using asymmetric Supabase signing keys
-- Distributed rate limiting and durable audit events (in-process limits exist)
-- Cursor pagination and measured query-performance budgets (bounded offset pagination exists)
-- Error tracking, service metrics, and tested backup restoration
-- Extract a service only after measured scaling or release-boundary evidence
+These are not product tasks unless an approved spec makes them so.
+
+- Cached JWKS verification for asymmetric Supabase signing keys
+- Distributed rate limits and durable audit events when multiple replicas are justified
+- Cursor pagination and measured query-performance budgets when evidence requires them
+- Error tracking, service metrics, backup restoration, and migration rollback rehearsal before production schema releases
+- Service extraction only after measured scaling or release-boundary evidence
+
+## Roadmap safety rules
+
+1. Never implement a `PLANNED`, `BLOCKED`, or `DEFERRED` task.
+2. Never change public API or database schema implicitly.
+3. Never introduce Redis, queues, microservices, vector databases, or an AI
+   provider without an approved spec.
+4. Never promote a hypothesis from `STRATEGY.md` into a product fact.
+5. Never let an AI inference become source-of-truth learner state.
+6. Never weaken ownership/security/SRS invariants for convenience.
+7. Never mark a task `DONE` without verification evidence.
+8. Never commit or push unless explicitly instructed.

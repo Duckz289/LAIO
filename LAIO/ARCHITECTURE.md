@@ -20,9 +20,8 @@ justify service extraction.
 
 The planner and any AI assistance read learner state and write selections and
 suggestions; they never mutate the SRS schedule policy, `ReviewHistory`, or
-ownership. AI providers are adapters at the edge, like the dictionary
-provider, and are never the source of truth for scheduling, mastery, or
-learning history.
+ownership. External and AI providers, when approved, are adapters at the edge
+and are never the source of truth for scheduling, mastery, or learning history.
 
 ## Dependency rule
 

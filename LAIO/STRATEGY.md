@@ -26,26 +26,27 @@ on market evidence.
 | Current capability | Actual implementation status | Data already captured | Relevant invariant | Strategic implication |
 |---|---|---|---|---|
 | Identity | **[Repo]** Supabase JWT only; `get_current_user` returns a bare `user_id` (`backend/app/api/deps.py`). No profile table of any kind exists. | Nothing beyond `user_id`. | Every user-scoped query filters by `user_id`; child resources authorized through parents. | The Learner Profile is a green-field addition. `BACKLOG.md` already anticipated a `UserLearningProfile`. |
-| Vocabulary capture | **[Repo]** Real and tested: notebooks + vocab CRUD, server search, bounded pagination. | word, meaning, pronunciation, pos, example, audio/image URLs, `difficulty_level` (1–5), `cefr_level` (uncommitted migration `0005`, always-null stub). | Notebook ownership; DB trigger `trg_vocab_items_create_progress` creates the progress row — services must not double-insert. | Capture works. `cefr_level` is a cheap additive hook waiting for a licensed data source. |
+| Vocabulary capture | **[Repo]** Real and tested: notebooks + vocab CRUD, server search, bounded pagination. | word, meaning, pronunciation, pos, example, audio/image URLs, `difficulty_level` (1–5). | Notebook ownership; the live schema is expected to create a progress row through `trg_vocab_items_create_progress`; the service has a guarded fallback for environments without that trigger. | Capture works. Any future CEFR field or source needs an approved data and public-contract design. |
 | SRS scheduling | **[Repo]** Pure SM-2 function (`backend/app/services/sm2_service.py`); `vocab_progress` is the single persisted schedule per (item, user). | ease_factor, interval_days, repetition_count, next_review_date, last_reviewed_at. | Due-only review (`next_review_date <= CURRENT_DATE`); ease ≥ 1.3; row locking on update. | Deterministic and auditable. The future planner **extends** this; it never replaces or overwrites it. |
 | Review evidence | **[Repo]** `review_history` is append-only with before/after schedule snapshots. | score (0–5), review_type, time_spent_ms, ease/interval before+after, next_review_date_after, reviewed_at, session link. | Append-only; unique (session, item); score ≥ 3 = correct. | Good skeleton. Missing: prompt direction, the answer actually submitted, and plan context — the "capture now or lose it" gap (§13). |
 | Learning sessions | **[Repo]** Real vertical slice: create → answer → complete/abandon. | planned/answered/correct counters, status, timestamps. | One active session per user (partial unique index); no double-answer per item per session; new session abandons the old active one. | The future Daily Session composes on this infrastructure. No rewrite needed. |
 | Analytics | **[Repo]** Counter summary + naive consecutive-day streak (`backend/app/services/analytics_service.py`). | Derived only; nothing persisted. | — | No retention measurement, no weak-item view, no delayed-check concept. P1 material. |
-| Vocabulary lookup | **[Repo]** Uncommitted: provider-abstracted dictionary lookup (`DictionaryProvider` protocol, FreeDictionary adapter); CEFR deliberately returns null. | Normalized ipa/audio_url; provider never exposed; provider failure is a status, not an error. | API never fails because an external provider fails. | This adapter pattern is the template for every future external content or AI provider. |
+| Vocabulary lookup | **[Repo]** No dictionary lookup route or provider is implemented in this checkout. Frontend lookup/CEFR remnants are tracked as a contract-alignment debt. | None from a lookup provider. | Any future provider must not become a source of truth for ownership, scheduling, or learning history. | A provider abstraction may be appropriate only after an approved feature slice defines data provenance, fallback behavior, and public contract. |
 | Game sessions | **[Repo]** Backend mounted; frontend does not call it (legacy). | — | — | Outside this strategy. Candidate for deliberate retirement per `TECH_DEBT.md`. |
 
-### 1.2 Documentation ↔ code discrepancies (reported, not silently fixed)
+### 1.2 Documentation ↔ code reconciliation
 
-- **[Repo]** `API_CONTRACT.md` omits `GET /vocab-items/notebook/{id}/search`,
-  which exists in code (`backend/app/api/v1/vocab_items.py`) and is listed in
-  `CLAUDE.md`.
-- **[Repo]** `AI_HANDOFF.md` lists notebook/vocab routes as `GET/PUT/DELETE`;
-  the canonical methods are `PATCH` with `PUT` deprecated (per code and
-  `API_CONTRACT.md`).
-- **[Repo]** `README.md` and `AI_HANDOFF.md` state the migration head is
-  `0004`; the workspace contains uncommitted `0005_vocab_cefr_level.py`.
-- **[Repo]** `CLAUDE.md` says the workspace is on branch `Minh_Phat`; it is
-  currently on a detached HEAD.
+The 2026-08-19 documentation audit reconciled the previously reported search
+route and PATCH/PUT summaries in `API_CONTRACT.md` and `AI_HANDOFF.md`.
+
+The tracked Alembic migration chain currently ends at `0004`; no tracked
+`0005_vocab_cefr_level.py`, backend CEFR field, dictionary lookup route, or
+dictionary-provider implementation exists in this checkout. Frontend remnants
+that assume lookup/CEFR support remain tracked debt in `TECH_DEBT.md`.
+
+Repository branch and deployment state are transient facts. They are checked at
+the start of an implementation run rather than asserted as durable strategy
+content.
 
 ### 1.3 What remains unchanged
 
@@ -488,9 +489,9 @@ not claims:
 - **"Why this activity?"** — reason codes surfaced in-session (§9).
 - **Confidence honesty** — estimates display their evidence band (§5.2);
   "not enough evidence yet" is a legitimate, visible state.
-- **Source attribution** — dictionary/IPA/audio and future CEFR data show
-  their source class; the provider abstraction already enforces the boundary.
-  **[Repo]**
+- **Source attribution** — any future dictionary, IPA, audio, or CEFR data
+  must show its source class and use an approved boundary that does not expose
+  provider secrets or make provider output authoritative. **[Future design]**
 - **User correction** — learners can fix LAIO's assumptions (unit, goal,
   "I actually know this word") and corrections are recorded as evidence, not
   silently discarded.
@@ -519,7 +520,7 @@ Constraints: structured learner state, review history, goals, ownership, and
 scheduling decisions remain auditable; a model-provider failure must not
 erase or invalidate learner state; no architecture coupling to one
 proprietary model — every AI touchpoint goes through a provider-agnostic
-adapter exactly like `DictionaryProvider`. **[Repo pattern]**
+provider-agnostic adapter. **[Architecture direction]**
 
 ---
 
@@ -656,10 +657,9 @@ observation.
    activity → save progress → account. Stronger first impression, but
    requires diagnostic content and infrastructure that do not exist yet.
    **Deferred to G3.**
-2. *Capture-led:* sign in → capture a handful of words (lookup-assisted
-   **[Repo]**) → first review with visible scheduling ("LAIO will ask you
-   this again Thursday") → due reviews return. Fits current product maturity.
-   **Chosen for G1.**
+2. *Capture-led:* sign in → manually capture a handful of words → first
+   review with visible scheduling ("LAIO will ask you this again Thursday") →
+   due reviews return. Fits current product maturity. **Chosen for G1.**
 
 **Defined:** activation event (above); time-to-value target — measured
 first, then reduced (baseline from G0, no invented number); minimum
@@ -853,9 +853,9 @@ gate); school-context indifference would remove a differentiation pillar
 
 **Engineering:** evidence-capture extensions touch the hot review path —
 schema additions must stay additive and invariant-preserving (mitigation:
-P1 is deliberately small; all changes additive like `0005`); planner
-complexity creep (mitigation: gates are rules with logged reasons, no ML in
-MVP).
+P1 is deliberately small; any future persistence changes must be additive,
+owner-approved, and invariant-preserving); planner complexity creep (mitigation:
+gates are rules with logged reasons, no ML in MVP).
 
 **Market:** founder-network sampling bias — the first 30 THPT users are not
 representative of Vietnam (mitigation: THCS probe + stated falsifiers);
