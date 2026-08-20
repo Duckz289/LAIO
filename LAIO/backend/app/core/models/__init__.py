@@ -4,6 +4,7 @@ from .vocab_item import VocabItem
 from .vocab_progress import VocabProgress
 from .review_history import ReviewHistory, ReviewTypeEnum
 from .game_session import GameSession
+from .learning_session import LearningSession, LearningSessionStatus
 
 __all__ = [
     "Base",
@@ -13,4 +14,6 @@ __all__ = [
     "ReviewHistory",
     "ReviewTypeEnum",
     "GameSession",
+    "LearningSession",
+    "LearningSessionStatus",
 ]

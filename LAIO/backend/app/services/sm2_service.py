@@ -6,6 +6,7 @@ def calculate_sm2(
     current_interval: int,
     current_repetition: int,
     score: int,
+    today: date | None = None,
 ) -> dict:
     """
     SuperMemo 2 algorithm.
@@ -42,7 +43,7 @@ def calculate_sm2(
     new_ease = max(1.3, new_ease)  # Minimum ease factor is 1.3
     
     # Calculate next review date
-    next_review = date.today() + timedelta(days=new_interval)
+    next_review = (today or date.today()) + timedelta(days=new_interval)
     
     return {
         "ease_factor": round(new_ease, 2),

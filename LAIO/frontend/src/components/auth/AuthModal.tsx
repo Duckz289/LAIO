@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
 import { X, Mail, Lock, ArrowRight, Github } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { isSupabaseConfigured, supabase, supabaseConfigError } from "@/lib/supabase";
+import AnimatedModal from "@/components/AnimatedModal";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -15,34 +16,84 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
+  const emailId = useId();
+  const passwordId = useId();
+  const emailInputRef = useRef<HTMLInputElement>(null);
+  const loadingRef = useRef(false);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    loadingRef.current = loading;
+  }, [loading]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    const previouslyFocused = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !loadingRef.current) onClose();
+    };
+
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", closeOnEscape);
+    emailInputRef.current?.focus();
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", closeOnEscape);
+      previouslyFocused?.focus();
+    };
+  }, [isOpen, onClose]);
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isSupabaseConfigured) {
+      setErrorMsg(supabaseConfigError);
+      return;
+    }
+
     setLoading(true);
     setErrorMsg("");
+    setSuccessMsg("");
 
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+        });
         if (error) throw error;
-        alert("Đăng ký thành công! Hãy kiểm tra hộp thư Email để xác thực tài khoản.");
-        onClose();
+        if (data.session) {
+          window.location.assign("/dashboard");
+          return;
+        }
+        setSuccessMsg("Đăng ký thành công. Hãy kiểm tra email để xác thực tài khoản.");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
         if (error) throw error;
-        window.location.href = "/notebooks";
+        window.location.assign("/dashboard");
       }
-    } catch (error: any) {
-      setErrorMsg(error.message || "Đã xảy ra lỗi, vui lòng thử lại.");
+    } catch (error: unknown) {
+      setErrorMsg(error instanceof Error ? error.message : "Đã xảy ra lỗi, vui lòng thử lại.");
     } finally {
       setLoading(false);
     }
   };
 
   const handleOAuthLogin = async (provider: "github") => {
+    if (!isSupabaseConfigured) {
+      setErrorMsg(supabaseConfigError);
+      return;
+    }
+
     try {
+      setLoading(true);
+      setErrorMsg("");
       const { error } = await supabase.auth.signInWithOAuth({
         provider: provider,
         options: {
@@ -50,80 +101,116 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         },
       });
       if (error) throw error;
-    } catch (error: any) {
-      alert(error.message);
+    } catch (error: unknown) {
+      setErrorMsg(error instanceof Error ? error.message : "Không thể đăng nhập bằng GitHub.");
+      setLoading(false);
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop - xuất hiện NGAY LẬP TỨC, không animation */}
-      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
+  const toggleMode = () => {
+    setIsSignUp((current) => !current);
+    setErrorMsg("");
+    setSuccessMsg("");
+    setPassword("");
+  };
 
-      {/* Popup - chỉ popup này mới có animation */}
-      <div className="relative z-10 w-full max-w-md animate-zoomIn">
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-2xl overflow-hidden p-6 flex flex-col gap-5">
-          
-          <button 
-            onClick={onClose} 
-            className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-50 transition-all duration-200"
+  return (
+    <AnimatedModal
+      isOpen={isOpen}
+      onClose={onClose}
+      closeLabel="Đóng bằng cách bấm ra ngoài"
+      closeDisabled={loading}
+      labelledBy="auth-modal-title"
+      panelClassName="max-w-md"
+      overlayClassName="fixed inset-0 z-[100] flex items-center justify-center p-4"
+    >
+      <div className="flex flex-col gap-5 overflow-hidden rounded-[30px] bg-[#fffdf7] p-6 shadow-xl shadow-[#0d2b24]/15 sm:p-7">
+
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            aria-label="Đóng cửa sổ đăng nhập"
+            className="absolute right-4 top-4 rounded-xl border-2 border-transparent p-2 text-[#426157] transition-colors duration-200 hover:border-[#173f34] hover:bg-[#f4eedf] hover:text-[#173f34]"
           >
             <X className="w-5 h-5" />
           </button>
 
           <div className="text-center mt-2">
-            <h2 className="text-2xl font-bold text-slate-900">
+            <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-[20px] bg-[#f8df7d] text-xl font-black text-[#173f34] shadow-sm">L</div>
+            <h2 id="auth-modal-title" className="landing-display text-2xl font-black leading-[1.15] tracking-[-0.035em] text-[#173f34]">
               {isSignUp ? "Tạo tài khoản mới" : "Chào mừng trở lại"}
             </h2>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="mt-2 text-sm font-medium leading-6 text-[#597168]">
               {isSignUp ? "Bắt đầu hành trình làm chủ từ vựng cùng LAIO" : "Đăng nhập để tiếp tục lộ trình ôn tập"}
             </p>
           </div>
 
           {errorMsg && (
-            <div className="bg-red-50 border border-red-100 text-red-600 text-xs px-3 py-2 rounded-xl animate-shake">
+            <div role="alert" className="animate-shake rounded-xl border-2 border-[#dc6b5b] bg-[#fff0e9] px-3 py-2 text-xs font-semibold text-[#8a2f24]">
               ⚠️ {errorMsg}
+            </div>
+          )}
+
+          {successMsg && (
+            <div role="status" className="rounded-xl border-2 border-[#65a36d] bg-[#eef8e6] px-3 py-2 text-xs font-semibold text-[#285c38]">
+              {successMsg}
+            </div>
+          )}
+
+          {!isSupabaseConfigured && (
+            <div className="rounded-xl border-2 border-[#d7b83f] bg-[#fff7cf] px-3 py-2 text-xs font-semibold leading-relaxed text-[#654f0a]">
+              Tạo file <code className="font-semibold">frontend/.env.local</code> rồi thêm Supabase URL và public anon key. Không dùng secret key ở frontend.
             </div>
           )}
 
           <form onSubmit={handleEmailAuth} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-slate-700">Địa chỉ Email</label>
+              <label htmlFor={emailId} className="text-xs font-black text-[#173f34]">Địa chỉ email</label>
               <div className="relative">
-                <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
+                <Mail className="w-4 h-4 text-[#8fa99b] absolute left-3 top-3.5" />
                 <input
                   type="email"
+                  id={emailId}
+                  ref={emailInputRef}
                   placeholder="name@example.com"
                   required
+                  autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-slate-50 text-sm transition-all duration-200"
+                  className="w-full rounded-xl border-2 border-[#173f3430] bg-white py-3 pl-9 pr-4 text-sm text-[#173f34] transition-colors duration-200 placeholder:text-[#759087] focus:border-[#173f34] focus:outline-none"
                 />
               </div>
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-slate-700">Mật khẩu</label>
+              <label htmlFor={passwordId} className="text-xs font-black text-[#173f34]">Mật khẩu</label>
               <div className="relative">
-                <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
+                <Lock className="w-4 h-4 text-[#8fa99b] absolute left-3 top-3.5" />
                 <input
                   type="password"
+                  id={passwordId}
                   placeholder="••••••••"
                   required
+                  autoComplete={isSignUp ? "new-password" : "current-password"}
+                  minLength={isSignUp ? 8 : undefined}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-slate-50 text-sm transition-all duration-200"
+                  className="w-full rounded-xl border-2 border-[#173f3430] bg-white py-3 pl-9 pr-4 text-sm text-[#173f34] transition-colors duration-200 placeholder:text-[#759087] focus:border-[#173f34] focus:outline-none"
                 />
               </div>
             </div>
 
             <button
               type="submit"
-              disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium py-2.5 rounded-xl transition-all duration-200 flex items-center justify-center gap-1 mt-2 text-sm shadow-sm"
+              disabled={loading || !isSupabaseConfigured}
+              className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-full bg-[#173f34] py-3 text-sm font-black text-white transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#0f3028] disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:translate-y-0"
             >
               {loading ? (
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true" />
+                  <span>Đang xử lý...</span>
+                </>
               ) : (
                 <>
                   {isSignUp ? "Đăng ký" : "Đăng nhập"}
@@ -133,33 +220,34 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             </button>
           </form>
 
-          <div className="relative flex py-2 items-center text-xs text-slate-400">
-            <div className="flex-grow border-t border-slate-100" />
+          <div className="relative flex items-center py-2 text-xs font-semibold text-[#759087]">
+            <div className="flex-grow border-t border-[#173f3425]" />
             <span className="flex-shrink mx-3">Hoặc tiếp tục với</span>
-            <div className="flex-grow border-t border-slate-100" />
+            <div className="flex-grow border-t border-[#173f3425]" />
           </div>
 
           <button
             type="button"
             onClick={() => handleOAuthLogin("github")}
-            className="w-full border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium py-2.5 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 text-sm shadow-sm"
+            disabled={!isSupabaseConfigured || loading}
+            className="flex w-full items-center justify-center gap-2 rounded-full border-2 border-[#173f3435] bg-white py-3 text-sm font-black text-[#173f34] transition-colors duration-200 hover:border-[#173f34] hover:bg-[#f4eedf] disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Github className="w-4 h-4" />
             GitHub
           </button>
 
-          <p className="text-center text-xs text-slate-500 mt-2">
+          <p className="mt-2 text-center text-xs font-medium text-[#597168]">
             {isSignUp ? "Bạn đã có tài khoản?" : "Chưa có tài khoản?"}{" "}
             <button
               type="button"
-              onClick={() => setIsSignUp(!isSignUp)}
-              className="text-blue-600 font-semibold hover:underline"
+              onClick={toggleMode}
+              disabled={loading}
+              className="font-black text-[#d94736] hover:underline"
             >
               {isSignUp ? "Đăng nhập ngay" : "Tạo tài khoản miễn phí"}
             </button>
           </p>
         </div>
-      </div>
-    </div>
+    </AnimatedModal>
   );
 }

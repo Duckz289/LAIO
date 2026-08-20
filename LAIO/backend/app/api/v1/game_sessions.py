@@ -15,33 +15,35 @@ router = APIRouter()
 
 
 @router.post("/start", response_model=GameSessionResponse, status_code=status.HTTP_201_CREATED)
-async def start_game_session(
+def start_game_session(
     data: GameSessionStart,
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user),
+    user_id: UUID = Depends(get_current_user),
 ):
     """Start a new game session."""
-    session = await game_service.start_game_session(
+    session = game_service.start_game_session(
         db=db,
-        user_id=UUID(user_id),
+        user_id=user_id,
         notebook_id=data.notebook_id,
         game_type=data.game_type,
     )
+    if session is None:
+        raise HTTPException(status_code=404, detail="Notebook not found")
     return session
 
 
 @router.post("/{session_id}/end", response_model=GameSessionResponse)
-async def end_game_session(
+def end_game_session(
     session_id: UUID,
     data: GameSessionEnd,
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user),
+    user_id: UUID = Depends(get_current_user),
 ):
     """End a game session."""
-    session = await game_service.end_game_session(
+    session = game_service.end_game_session(
         db=db,
         session_id=session_id,
-        user_id=UUID(user_id),
+        user_id=user_id,
         total_questions=data.total_questions,
         correct_answers=data.correct_answers,
     )
@@ -51,16 +53,16 @@ async def end_game_session(
 
 
 @router.get("/{session_id}", response_model=GameSessionResponse)
-async def get_game_session(
+def get_game_session(
     session_id: UUID,
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user),
+    user_id: UUID = Depends(get_current_user),
 ):
     """Get a game session by ID."""
-    session = await game_service.get_game_session(
+    session = game_service.get_game_session(
         db=db,
         session_id=session_id,
-        user_id=UUID(user_id),
+        user_id=user_id,
     )
     if not session:
         raise HTTPException(status_code=404, detail="Game session not found")

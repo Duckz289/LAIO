@@ -1,0 +1,4 @@
+interface:
+  display_name: "web-backend-engineering"
+  short_description: "Reusable professional web engineering workflow"
+  default_prompt: "Use this skill to build and review a production-ready web application."

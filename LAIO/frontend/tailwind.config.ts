@@ -8,6 +8,32 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      colors: {
+        brand: {
+          forest: "#173f34",
+          "forest-dark": "#0f3028",
+          "forest-deep": "#112f28",
+          accent: "#f0513e",
+          "accent-dark": "#d94736",
+          "accent-deep": "#8a2f24",
+          "accent-soft": "#dc6b5b",
+          cream: "#f8df7d",
+          "cream-soft": "#fff7cf",
+          paper: "#fffdf7",
+          sand: "#f4eedf",
+          ink: "#173f34",
+          muted: "#426157",
+          subtle: "#597168",
+          faint: "#759087",
+          success: "#285c38",
+          "success-border": "#65a36d",
+          "success-bg": "#eef8e6",
+          warn: "#654f0a",
+          "warn-border": "#d7b83f",
+          "warn-bg": "#fff7cf",
+          "error-bg": "#fff0e9",
+        },
+      },
       keyframes: {
         // Fade animations
         fadeIn: {
